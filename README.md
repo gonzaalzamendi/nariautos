@@ -2,7 +2,7 @@
 
 Sistema web para una concesionaria con cuatro sucursales y taller propio de post-venta en dos de ellas. Prototipo funcional del Trabajo Integrador de Sistemas de Información Gerencial (FCE – UNICEN).
 
-**URL pública:** URL_PUBLICA
+**URL pública:** https://nariautos-trabajosig.vercel.app
 
 Resuelve tres problemas del negocio:
 
