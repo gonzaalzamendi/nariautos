@@ -82,7 +82,7 @@ export function PanelContacto({ unidadId, precio, fechaMinima }: { unidadId: num
             <FormAccion key="t" accion={agendarTestDrive} limpiar className="space-y-3" ocultos={{ unidad: unidadId }}>
               <div className="grid grid-cols-2 gap-3">
                 <Entrada etiqueta="Fecha" name="fecha" type="date" min={fechaMinima} required />
-                <Selector etiqueta="Franja horaria" name="franja" required opciones={[["manana", "Mañana (9 a 12 h)"], ["mediodia", "Mediodía (12 a 15 h)"], ["tarde", "Tarde (15 a 18 h)"]]} />
+                <Entrada etiqueta="Horario" name="hora" type="time" min="09:00" max="18:00" step={900} required defaultValue="10:00" ayuda="Entre las 9 y las 18 h." />
               </div>
               <Contacto />
               <p className="text-xs text-medio">El test drive queda pendiente hasta que el vendedor lo confirme.</p>

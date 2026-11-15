@@ -71,6 +71,8 @@ export type Database = {
           intentos_fallidos: number;
           bloqueado_hasta: string | null;
           creado_en: string;
+          usuario: string;
+          pin_cambiado_en: string;
         };
       };
       encuestas: {
@@ -184,6 +186,27 @@ export type Database = {
           creado_en: string;
         };
       };
+      repuestos: {
+        Row: {
+          id: number;
+          sucursal_id: number;
+          codigo: string;
+          nombre: string;
+          stock: number;
+          stock_minimo: number;
+          precio: number;
+          activo: boolean;
+        };
+      };
+      repuestos_orden: {
+        Row: {
+          id: number;
+          orden_id: number;
+          repuesto_id: number;
+          cantidad: number;
+          creado_en: string;
+        };
+      };
       reservas_unidad: {
         Row: {
           id: number;
@@ -213,6 +236,7 @@ export type Database = {
           duracion_min: number;
           precio_orientativo: number | null;
           activo: boolean;
+          requiere_descripcion: boolean;
         };
       };
       solicitudes_publicas: {
@@ -270,8 +294,8 @@ export type Database = {
           consulta_id: number;
           unidad_id: number | null;
           fecha: string;
-          franja: string;
           estado: string;
+          hora: string;
         };
       };
       transferencias_unidad: {
@@ -340,6 +364,7 @@ export type Database = {
           anio: number | null;
           km_actual: number | null;
           cliente_id: number | null;
+          codigo_auto: string;
         };
       };
     };

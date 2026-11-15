@@ -69,7 +69,7 @@ export default async function Tablero({ searchParams }: { searchParams: Promise<
         <Indicador nombre="Conversión consulta → venta" valor={s1(conv)} detalle="Consultas ganadas sobre el total" />
         <Indicador nombre="Tiempo de primera respuesta" valor={respondidas ? `${numero(suma(consultas, "horas_respuesta") / respondidas, 1)} h` : "—"} detalle={`Promedio sobre ${respondidas} respondidas`} />
       </div>
-      <div className="mt-4"><Tarjeta titulo="Consultas por canal"><Barras datos={["web", "whatsapp", "telefono", "redes", "presencial"].map((c) => ({ nombre: etiqueta(c), valor: suma(consultas.filter((x) => x.canal === c), "total") }))} sufijo=" consultas" /></Tarjeta></div>
+      <div className="mt-4"><Tarjeta titulo="Consultas por canal"><Barras datos={["web", "whatsapp", "telefono", "presencial"].map((c) => ({ nombre: etiqueta(c), valor: suma(consultas.filter((x) => x.canal === c), "total") }))} sufijo=" consultas" /></Tarjeta></div>
 
       <h2 className="mb-3 mt-8 text-xl">Post-venta</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

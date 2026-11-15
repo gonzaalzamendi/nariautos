@@ -32,19 +32,20 @@ export const MENU: Record<Rol, { href: string; texto: string }[]> = {
     { href: "/vendedor/stock", texto: "Stock de la red" },
     { href: "/vendedor/promociones", texto: "Promociones" },
     { href: "/vendedor/tasaciones", texto: "Tasaciones" },
-    { href: "/vendedor/derivar", texto: "Derivar a taller" },
   ],
   asesor: [
     { href: "/asesor", texto: "Agenda" },
     { href: "/asesor/recordatorios", texto: "Recordatorios" },
-    { href: "/asesor/historial", texto: "Historial por patente" },
+    { href: "/asesor/historial", texto: "Historial" },
     { href: "/asesor/derivar", texto: "Nuevo turno" },
   ],
   jefe_taller: [
     { href: "/taller", texto: "Órdenes de trabajo" },
     { href: "/taller/demorados", texto: "Demorados" },
+    { href: "/taller/repuestos", texto: "Repuestos" },
+    { href: "/taller/mecanicos", texto: "Mecánicos" },
     { href: "/taller/ocupacion", texto: "Ocupación" },
-    { href: "/taller/historial", texto: "Historial por patente" },
+    { href: "/taller/historial", texto: "Historial" },
   ],
   gerencia: [
     { href: "/gerencia", texto: "Tablero" },

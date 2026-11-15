@@ -2,11 +2,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
-import { consultarDisponibilidad } from "@/lib/acciones/publico";
+import { consultarDisponibilidad, datosDePatente } from "@/lib/acciones/publico";
+import { buscarRegistrados } from "@/lib/acciones/ventas";
 import { diaSemana, fecha as fmtFecha, fechaLarga, hoyAR, moneda, sumarDias } from "@/lib/formato";
 import type { Estado } from "@/lib/tipos";
 import { AreaTexto, Entrada, Selector, claseBoton } from "./ui";
 import { Mensajes } from "./formularios";
+import { BotonesAviso } from "./avisos";
 
 /** Agenda compartida: días hábiles y franjas libres del taller elegido. */
 export function SelectorHorario({ taller, servicio, valor, onChange }: { taller: number; servicio: number; valor: { fecha: string; hora: string } | null; onChange: (v: { fecha: string; hora: string } | null) => void }) {
@@ -54,52 +56,82 @@ export function SelectorHorario({ taller, servicio, valor, onChange }: { taller:
 
 type Props = {
   servicios: any[]; sucursales: any[]; modo: "cliente" | "empleado";
-  origenFijo?: number; sucursalInicial?: number;
+  /** Taller del asesor: el trabajo siempre se hace ahí y se elige de qué sucursal llega el cliente. */
+  tallerFijo?: number; sucursalInicial?: number;
   reservar: (datos: Record<string, unknown>) => Promise<Estado>;
 };
 const PASOS = ["Servicio", "Taller", "Día y hora", "Tus datos", "Confirmación"];
+const radio = (activo: boolean) => clsx("flex cursor-pointer gap-3 rounded-md border p-3", activo ? "border-marino bg-acero/5" : "border-borde hover:border-acero");
 
-export function AsistenteTurno({ servicios, sucursales, modo, origenFijo, sucursalInicial, reservar }: Props) {
+export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucursalInicial, reservar }: Props) {
   const empleado = modo === "empleado";
   const [paso, setPaso] = useState(0);
   const [servicio, setServicio] = useState<number | null>(null);
-  const [cercana, setCercana] = useState<number | null>(origenFijo ?? sucursalInicial ?? null);
+  const [cercana, setCercana] = useState<number | null>(tallerFijo ?? sucursalInicial ?? null);
   const [tallerElegido, setTallerElegido] = useState<number | null>(null);
   const [horario, setHorario] = useState<{ fecha: string; hora: string } | null>(null);
   const [d, setD] = useState<Record<string, string>>({ canal: "presencial" });
   const [estado, setEstado] = useState<Estado>({});
+  const [registrado, setRegistrado] = useState<any>(null);
   const [enviando, iniciar] = useTransition();
 
   const suc = sucursales.find((s) => s.id === cercana);
   const talleres = sucursales.filter((s) => s.tiene_taller);
-  const taller = suc ? (suc.tiene_taller ? suc.id : tallerElegido ?? suc.taller_referencia_id) : null;
+  const taller = tallerFijo ?? (suc ? (suc.tiene_taller ? suc.id : tallerElegido ?? suc.taller_referencia_id) : null);
   const tallerSuc = sucursales.find((s) => s.id === taller);
   const srv = servicios.find((s) => s.id === servicio);
   const campo = (k: string) => ({ name: k, value: d[k] ?? "", onChange: (e: React.ChangeEvent<any>) => setD((x) => ({ ...x, [k]: e.target.value })) });
   const km = (id: number) => { const v = suc?.distancias?.[id]; return v != null ? `a ${String(v).replace(".", ",")} km` : ""; };
+  const faltaDescripcion = !!srv?.requiere_descripcion && (d.observaciones ?? "").trim().length < 10;
+
+  // Autocompletar opcional: si la patente ya está registrada, se ofrecen sus datos
+  const buscarPatente = async () => {
+    const p = (d.patente ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (p.length < 6) return setRegistrado(null);
+    if (empleado) { const r = await buscarRegistrados({ patente: p }); setRegistrado(r.vehiculo ? { ...r.vehiculo, cliente: r.vehiculo.clientes } : null); }
+    else setRegistrado(await datosDePatente(p));
+  };
+  const completar = () => {
+    setD((x) => ({ ...x, marca: registrado.marca, modelo: registrado.modelo, anio: String(registrado.anio ?? ""),
+      ...(registrado.km_actual != null && !x.km ? { km: String(registrado.km_actual) } : {}),
+      ...(registrado.cliente ? { nombre: registrado.cliente.nombre, telefono: registrado.cliente.telefono, email: registrado.cliente.email ?? "" } : {}) }));
+    setRegistrado(null);
+  };
 
   const confirmar = () => {
     setEstado({});
     iniciar(async () => {
-      const r = await reservar({ ...d, servicio, taller, origen: origenFijo ?? cercana, fecha: horario?.fecha, hora: horario?.hora });
+      const r = await reservar({ ...d, servicio, taller, origen: cercana, fecha: horario?.fecha, hora: horario?.hora });
       setEstado(r);
       if (r.ok) setPaso(4);
     });
   };
-  const puedeSeguir = [servicio != null, taller != null, horario != null, true][paso];
+  const puedeSeguir = [servicio != null && !faltaDescripcion, taller != null && cercana != null, horario != null, true][paso];
 
   if (paso === 4 && estado.datos) {
-    const t = estado.datos;
+    const t = estado.datos, cuando = `${fechaLarga(t.fecha)} a las ${String(t.hora).slice(0, 5)} h`;
     return (
       <div className="rounded-lg border border-exito/40 bg-white p-6 text-center shadow-suave" role="status">
         <p className="text-sm font-medium uppercase tracking-wide text-exito">Turno reservado</p>
-        <h2 className="mt-1 text-2xl">{empleado ? "El turno quedó en la agenda del taller" : "Guardá tu código de turno"}</h2>
-        <p className="cifras mx-auto mt-4 w-fit rounded-md border-2 border-dashed border-dorado bg-dorado/10 px-6 py-3 font-mono text-3xl font-semibold tracking-[0.2em] text-marino">{t.codigo}</p>
-        <p className="mt-4">{srv?.nombre} · {fechaLarga(t.fecha)} a las {String(t.hora).slice(0, 5)} h<br /><strong>{tallerSuc?.nombre}</strong> · {tallerSuc?.direccion}, {tallerSuc?.localidad}</p>
+        <h2 className="mt-1 text-2xl">{empleado ? "El turno quedó en la agenda del taller" : "Guardá estos dos códigos"}</h2>
+        <div className="mx-auto mt-4 flex w-fit flex-wrap justify-center gap-4">
+          <div><p className="text-xs uppercase tracking-wide text-medio">Código de turno</p>
+            <p className="cifras rounded-md border-2 border-dashed border-dorado bg-dorado/10 px-5 py-2.5 font-mono text-3xl font-semibold tracking-[0.2em] text-marino" data-codigo="turno">{t.codigo}</p></div>
+          {t.codigoAuto && <div><p className="text-xs uppercase tracking-wide text-medio">Código del vehículo</p>
+            <p className="cifras rounded-md border-2 border-dashed border-acero/50 bg-acero/5 px-5 py-2.5 font-mono text-3xl font-semibold tracking-[0.2em] text-marino" data-codigo="auto">{t.codigoAuto}</p></div>}
+        </div>
+        <p className="mt-4">{srv?.nombre} · {cuando}<br /><strong>{tallerSuc?.nombre}</strong> · {tallerSuc?.direccion}, {tallerSuc?.localidad}</p>
         {t.derivado && <p className="mx-auto mt-3 max-w-md rounded-md bg-fondo px-3 py-2 text-sm">Turno derivado desde {suc?.nombre}: el trabajo se realiza en {tallerSuc?.nombre}.</p>}
-        <p className="mx-auto mt-3 max-w-md text-sm text-medio">{empleado ? "Entregale el código al cliente: con su patente puede seguir el turno desde la web." : `Con la patente ${t.patente} y este código podés seguir, reprogramar o cancelar el turno. El asesor del taller lo va a confirmar.`}</p>
+        <p className="mx-auto mt-3 max-w-lg text-sm text-medio">Con la patente {t.patente} y el <strong>código de turno</strong> se sigue, reprograma o cancela el turno. Con la patente y el <strong>código del vehículo</strong> se consulta el historial de services.</p>
+        {empleado && t.telefono && (
+          <div className="mx-auto mt-4 w-fit text-left">
+            <p className="mb-2 text-sm font-medium">Enviarle los datos del turno al cliente</p>
+            <BotonesAviso telefono={t.telefono} email={t.email} turno={t.id}
+              mensaje={`Hola ${String(t.nombre).split(" ")[0]}, te confirmamos tu turno en NariAutos ${tallerSuc?.nombre} (${tallerSuc?.direccion}) para el ${cuando}: ${srv?.nombre}, vehículo patente ${t.patente}. Código de turno: ${t.codigo}. Código del vehículo para ver su historial: ${t.codigoAuto}. Podés seguirlo en {SITIO}/turnos/seguir`} />
+          </div>
+        )}
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {empleado ? <button type="button" className={claseBoton("secundario")} onClick={() => { setPaso(0); setServicio(null); setHorario(null); setD({ canal: "presencial" }); setEstado({}); }}>Cargar otro turno</button>
+          {empleado ? <button type="button" className={claseBoton("contorno")} onClick={() => { setPaso(0); setServicio(null); setHorario(null); setD({ canal: "presencial" }); setEstado({}); }}>Cargar otro turno</button>
             : <Link href="/turnos/seguir" className={claseBoton("secundario")}>Seguir mi turno</Link>}
         </div>
       </div>
@@ -111,7 +143,8 @@ export function AsistenteTurno({ servicios, sucursales, modo, origenFijo, sucurs
       <ol className="flex gap-1 overflow-x-auto border-b border-borde/70 px-3 py-3 text-sm" aria-label="Pasos">
         {PASOS.map((p, i) => (
           <li key={p} aria-current={i === paso ? "step" : undefined} className={clsx("flex shrink-0 items-center gap-1.5 rounded px-2 py-1", i === paso ? "font-semibold text-marino" : i < paso ? "text-exito" : "text-medio")}>
-            <span className={clsx("cifras flex h-6 w-6 items-center justify-center rounded-full border text-xs", i === paso ? "border-marino bg-marino text-white" : i < paso ? "border-exito" : "border-borde")}>{i + 1}</span>{i === 3 && empleado ? "Cliente y vehículo" : p}
+            <span className={clsx("cifras flex h-6 w-6 items-center justify-center rounded-full border text-xs", i === paso ? "border-marino bg-marino text-white" : i < paso ? "border-exito" : "border-borde")}>{i + 1}</span>
+            {empleado && i === 1 ? "Origen" : empleado && i === 3 ? "Cliente y vehículo" : p}
           </li>
         ))}
       </ol>
@@ -120,34 +153,49 @@ export function AsistenteTurno({ servicios, sucursales, modo, origenFijo, sucurs
           <fieldset><legend className="titulo mb-3 text-xl">¿Qué servicio necesita el vehículo?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {servicios.map((s) => (
-                <label key={s.id} className={clsx("flex cursor-pointer gap-3 rounded-md border p-3", servicio === s.id ? "border-marino bg-acero/5" : "border-borde hover:border-acero")}>
+                <label key={s.id} className={radio(servicio === s.id)}>
                   <input type="radio" name="servicio" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={servicio === s.id} onChange={() => { setServicio(s.id); setHorario(null); }} />
                   <span><span className="block font-medium">{s.nombre}</span><span className="block text-sm text-medio">{s.descripcion}</span>
-                    <span className="cifras mt-1 block text-xs text-medio">Duración estimada: {s.duracion_min} min · Desde {moneda(s.precio_orientativo)} (orientativo)</span></span>
+                    <span className="cifras mt-1 block text-xs text-medio">Duración estimada: {s.duracion_min} min{Number(s.precio_orientativo) > 0 ? ` · Desde ${moneda(s.precio_orientativo)} (orientativo)` : " · Precio a presupuestar"}</span></span>
+                </label>
+              ))}
+            </div>
+            {srv?.requiere_descripcion && (
+              <div className="mt-4 rounded-md border border-acero/30 bg-acero/5 p-3">
+                <AreaTexto etiqueta="Describí brevemente el problema" {...campo("observaciones")} required maxLength={500} placeholder="Ej.: pierde líquido refrigerante y levanta temperatura en ruta." ayuda="Al menos 10 caracteres. El taller lo usa para preparar el trabajo." />
+              </div>
+            )}
+          </fieldset>
+        )}
+        {paso === 1 && (tallerFijo ? (
+          <fieldset><legend className="titulo mb-1 text-xl">¿Desde qué sucursal llega el cliente?</legend>
+            <p className="mb-3 text-sm text-medio">El trabajo se realiza en <strong>{tallerSuc?.nombre}</strong>. Si el cliente viene de otra sucursal, el turno queda marcado como derivado.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {sucursales.map((s) => (
+                <label key={s.id} className={radio(cercana === s.id)}>
+                  <input type="radio" name="origen" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={cercana === s.id} onChange={() => setCercana(s.id)} />
+                  <span><span className="block font-medium">{s.nombre}{s.id === tallerFijo && " (este taller)"}</span><span className="block text-sm text-medio">{s.direccion}, {s.localidad}</span></span>
                 </label>
               ))}
             </div>
           </fieldset>
-        )}
-        {paso === 1 && (
+        ) : (
           <div>
-            {!origenFijo && (
-              <fieldset><legend className="titulo mb-3 text-xl">¿Cuál es tu sucursal más cercana?</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {sucursales.map((s) => (
-                    <label key={s.id} className={clsx("flex cursor-pointer gap-3 rounded-md border p-3", cercana === s.id ? "border-marino bg-acero/5" : "border-borde hover:border-acero")}>
-                      <input type="radio" name="cercana" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={cercana === s.id} onChange={() => { setCercana(s.id); setTallerElegido(null); setHorario(null); }} />
-                      <span><span className="block font-medium">{s.nombre}</span><span className="block text-sm text-medio">{s.direccion}, {s.localidad}</span>
-                        <span className="mt-1 block text-xs font-medium text-acero">{s.tiene_taller ? "Con taller propio" : "Sin taller"}</span></span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            )}
+            <fieldset><legend className="titulo mb-3 text-xl">¿Cuál es tu sucursal más cercana?</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {sucursales.map((s) => (
+                  <label key={s.id} className={radio(cercana === s.id)}>
+                    <input type="radio" name="cercana" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={cercana === s.id} onChange={() => { setCercana(s.id); setTallerElegido(null); setHorario(null); }} />
+                    <span><span className="block font-medium">{s.nombre}</span><span className="block text-sm text-medio">{s.direccion}, {s.localidad}</span>
+                      <span className="mt-1 block text-xs font-medium text-acero">{s.tiene_taller ? "Con taller propio" : "Sin taller"}</span></span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             {suc && !suc.tiene_taller && (
-              <div className={clsx("rounded-md border border-alerta/40 bg-alerta/10 p-4", !origenFijo && "mt-4")} role="status">
-                <p className="font-medium text-alerta-texto">{empleado ? `${suc.nombre} no tiene taller: el turno se deriva.` : "Esta sucursal no tiene taller."}</p>
-                <p className="mt-1 text-sm">{empleado ? "El turno" : "Tu turno"} se realizará en <strong>{suc.referencia?.nombre}</strong> ({suc.referencia?.direccion}, {suc.referencia?.localidad}), {km(suc.taller_referencia_id)}.</p>
+              <div className="mt-4 rounded-md border border-alerta/40 bg-alerta/10 p-4" role="status">
+                <p className="font-medium text-alerta-texto">Esta sucursal no tiene taller.</p>
+                <p className="mt-1 text-sm">Tu turno se realizará en <strong>{suc.referencia?.nombre}</strong> ({suc.referencia?.direccion}, {suc.referencia?.localidad}), {km(suc.taller_referencia_id)}.</p>
                 <fieldset className="mt-3"><legend className="mb-1 text-sm font-medium">Taller donde se hace el trabajo</legend>
                   {talleres.map((t) => (
                     <label key={t.id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
@@ -158,9 +206,8 @@ export function AsistenteTurno({ servicios, sucursales, modo, origenFijo, sucurs
                 </fieldset>
               </div>
             )}
-            {suc?.tiene_taller && origenFijo && <p className="text-sm">El turno se realiza en <strong>{suc.nombre}</strong>.</p>}
           </div>
-        )}
+        ))}
         {paso === 2 && taller && servicio && (
           <div><h2 className="mb-1 text-xl">Elegí día y hora</h2>
             <p className="mb-4 text-sm text-medio">Agenda de {tallerSuc?.nombre} para «{srv?.nombre}» ({srv?.duracion_min} min). Solo se muestran horarios con lugar.</p>
@@ -171,18 +218,27 @@ export function AsistenteTurno({ servicios, sucursales, modo, origenFijo, sucurs
           <form id="form-turno" onSubmit={(e) => { e.preventDefault(); confirmar(); }}>
             <h2 className="mb-3 text-xl">{empleado ? "Datos del cliente y del vehículo" : "Datos del vehículo y de contacto"}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Entrada etiqueta="Patente" {...campo("patente")} required placeholder="AB123CD" autoCapitalize="characters" className="uppercase" />
+              <Entrada etiqueta="Patente" {...campo("patente")} onBlur={buscarPatente} required placeholder="AB123CD" autoCapitalize="characters" className="uppercase" />
               <Entrada etiqueta="Kilómetros actuales" {...campo("km")} type="number" inputMode="numeric" min={0} required />
+              {registrado && (
+                <div className="rounded-md border border-acero/30 bg-acero/5 p-3 text-sm sm:col-span-2" role="status">
+                  <p>Esta patente ya está registrada: <strong>{registrado.marca} {registrado.modelo} {registrado.anio}</strong>{registrado.cliente && <> · titular {registrado.cliente.nombre}</>}.</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" className={claseBoton("secundario", true)} onClick={completar}>Completar con estos datos</button>
+                    <button type="button" className={claseBoton("sutil", true)} onClick={() => setRegistrado(null)}>Cargar los datos a mano</button>
+                  </div>
+                </div>
+              )}
               <Entrada etiqueta="Marca" {...campo("marca")} required /><Entrada etiqueta="Modelo" {...campo("modelo")} required />
               <Entrada etiqueta="Año" {...campo("anio")} type="number" inputMode="numeric" min={1960} max={2030} required />
               <Entrada etiqueta={empleado ? "Nombre y apellido del cliente" : "Nombre y apellido"} {...campo("nombre")} required autoComplete={empleado ? "off" : "name"} />
               <Entrada etiqueta="Teléfono" {...campo("telefono")} type="tel" inputMode="tel" required ayuda="Con código de área, sin 0 ni 15." autoComplete={empleado ? "off" : "tel"} />
               <Entrada etiqueta="Email (opcional)" {...campo("email")} type="email" autoComplete={empleado ? "off" : "email"} />
-              {empleado && <Selector etiqueta="Canal por el que llegó" {...campo("canal")} opciones={[["presencial", "Presencial"], ["telefono", "Teléfono"], ["whatsapp", "WhatsApp"], ["redes", "Redes sociales"]]} />}
-              <AreaTexto etiqueta="Observaciones (opcional)" {...campo("observaciones")} maxLength={500} contenedor="sm:col-span-2" />
+              {empleado && <Selector etiqueta="Canal por el que llegó" {...campo("canal")} opciones={[["presencial", "Presencial"], ["telefono", "Teléfono"], ["whatsapp", "WhatsApp"]]} />}
+              <AreaTexto etiqueta={srv?.requiere_descripcion ? "Descripción del problema" : "Observaciones (opcional)"} {...campo("observaciones")} required={!!srv?.requiere_descripcion} maxLength={500} contenedor="sm:col-span-2" />
             </div>
             <input type="text" name="sitio_web" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px]" onChange={(e) => setD((x) => ({ ...x, sitio_web: e.target.value }))} />
-            <p className="mt-4 rounded-md bg-fondo px-3 py-2 text-sm"><strong>{srv?.nombre}</strong> · {horario && fechaLarga(horario.fecha)} a las {horario?.hora} h · {tallerSuc?.nombre}</p>
+            <p className="mt-4 rounded-md bg-fondo px-3 py-2 text-sm"><strong>{srv?.nombre}</strong> · {horario && fechaLarga(horario.fecha)} a las {horario?.hora} h · {tallerSuc?.nombre}{tallerFijo && cercana !== tallerFijo && <> · derivado desde {suc?.nombre}</>}</p>
           </form>
         )}
         {estado.error && <div className="mt-4"><Mensajes estado={estado} /></div>}

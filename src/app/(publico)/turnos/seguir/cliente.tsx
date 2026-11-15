@@ -26,7 +26,7 @@ export function Seguimiento() {
       {t && (
         <section className="rounded-lg border border-borde/80 bg-white p-5 shadow-suave" aria-live="polite">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <div><h2 className="text-xl">{t.servicio}</h2><p className="text-sm text-medio">{t.vehiculo} · patente <span className="cifras">{t.patente}</span></p></div>
+            <div><h2 className="text-xl">{t.servicio}</h2><p className="text-sm text-medio">{t.vehiculo} · patente <span className="cifras">{t.patente}</span> · código del vehículo <span className="cifras font-medium text-grafito">{t.codigoAuto}</span></p></div>
             <Insignia estado={t.estado}>{etiqueta(t.estado)}</Insignia>
           </div>
           <p className="mt-3 text-sm"><strong className="capitalize">{fechaLarga(t.fecha)}</strong> a las <span className="cifras">{t.hora.slice(0, 5)}</span> h<br />{t.taller.nombre} · {t.taller.direccion}, {t.taller.localidad} · Tel. {t.taller.telefono}</p>

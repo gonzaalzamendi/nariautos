@@ -25,19 +25,22 @@ Resuelve tres problemas del negocio:
 
 ## Usuarios de demostración
 
-Los empleados ingresan por `/acceso` (enlace «Acceso empleados» al pie de la web): eligen su nombre y escriben el PIN.
+Los empleados ingresan por `/acceso` (enlace «Acceso empleados» al pie de la web) con **usuario y PIN de 4 dígitos**.
 
-| Usuario | Rol | Sucursal | PIN |
-|---|---|---|---|
-| Laura Méndez | Vendedor | Sucursal 3 (sin taller) | 1111 |
-| Martín Ríos | Asesor de servicio | Casa Central | 2222 |
-| Carlos Duarte | Jefe de taller | Casa Central | 3333 |
-| Sofía Herrera | Gerencia | Toda la red | 4444 |
-| (Cliente) | Cliente | — | sin contraseña |
+| Usuario | Nombre | Rol | Sucursal | PIN |
+|---|---|---|---|---|
+| `laura.mendez` | Laura Méndez | Vendedor | Sucursal 3 (sin taller) | 1111 |
+| `martin.rios` | Martín Ríos | Asesor de servicio | Casa Central | 2222 |
+| `carlos.duarte` | Carlos Duarte | Jefe de taller | Casa Central | 3333 |
+| `sofia.herrera` | Sofía Herrera | Gerencia | Toda la red | 4444 |
+| — | (Cliente) | Cliente | — | sin contraseña |
 
-Usuarios adicionales para mostrar las otras sucursales: Diego Paz (vendedor, Casa Central, 5555), Valeria Sosa (vendedora, Sucursal 2, 6666), Nicolás Ferreyra (vendedor, Sucursal 4, 7777), Paula Giménez (asesora, Sucursal 2, 8888) y Hugo Benítez (jefe de taller, Sucursal 2, 9999).
+Usuarios adicionales: `diego.paz` (vendedor, Casa Central, 5555), `valeria.sosa` (vendedora, Sucursal 2, 6666), `nicolas.ferreyra` (vendedor, Sucursal 4, 7777), `paula.gimenez` (asesora, Sucursal 2, 8888) y `hugo.benitez` (jefe de taller, Sucursal 2, 9999). **Hugo tiene el PIN vencido a propósito:** al ingresar, el sistema lo obliga a cambiarlo.
 
-Datos de cliente para probar: patente `AB123CD` con código `DEMO23` (turno listo para retirar) o con teléfono `2494501101` (historial).
+Datos de cliente para probar:
+
+- Seguir un turno: patente `AB123CD` y código de turno `DEMO23`.
+- Ver el historial: patente `AB123CD` y código del vehículo `TC18`.
 
 ## Matriz de permisos
 
@@ -46,13 +49,16 @@ Datos de cliente para probar: patente `AB123CD` con código `DEMO23` (turno list
 | Ver catálogo, fichas y promos | ✓ | ✓ | | | ✓ |
 | Pedir cotización / test drive | ✓ | | | | |
 | Sacar, seguir y cancelar su turno | ✓ | | | | |
-| Ver historial de su vehículo por patente | ✓ | | ✓ | ✓ | |
+| Ver historial de un vehículo | ✓ (patente + código del vehículo) | | ✓ (por patente o cliente) | ✓ (por patente o cliente) | |
 | Recibir y seguir consultas y cotizaciones | | ✓ (su sucursal) | | | solo lectura |
 | Cargar consultas de otros canales | | ✓ | | | |
-| Alta / edición de unidades y promos | | ✓ (su sucursal) | | | ✓ (toda la red) |
-| Derivar cliente a un taller | | ✓ | ✓ | | |
+| Alta / edición de unidades | | ✓ (su sucursal) | | | ✓ (toda la red) |
+| Alta / edición de promociones | | solo ve las vigentes | | | ✓ |
+| Agendar y gestionar test drives | pide | ✓ (su sucursal) | | | |
+| Cargar turnos de clientes (con sucursal de origen) | | | ✓ | | |
 | Confirmar / reprogramar turnos, recibir el auto, avisar al cliente | | | ✓ (su taller) | | |
 | Asignar trabajos a mecánicos, controlar demoras | | | | ✓ (su taller) | |
+| Repuestos del taller y alta de mecánicos | | | | ✓ (su taller) | |
 | Tablero de indicadores de toda la red | | | | | ✓ |
 | Gestión de empleados, sucursales y servicios | | | | | ✓ |
 
@@ -99,12 +105,14 @@ Otros comandos: `npm run build`, `npm run lint`, `npm test` (las pruebas corren 
 
 ## Seguridad
 
-- **RLS en las 26 tablas.** El rol anónimo solo puede leer catálogo (unidades no vendidas), fotos, promociones vigentes, sucursales y servicios. No puede escribir nada.
+- **RLS en las 28 tablas.** El rol anónimo solo puede leer catálogo (unidades no vendidas), fotos, promociones vigentes, sucursales y servicios. No puede escribir nada.
 - **Acceso del servidor.** En lugar de la `service_role key`, el servidor envía un secreto propio en la cabecera `x-nari-server`; las políticas RLS comparan su hash SHA-256 con el guardado en `private.config`. Cumple la misma función (una credencial que vive solo en el servidor) y se puede rotar sin tocar las claves del proyecto. Las funciones de negocio son `SECURITY INVOKER`, así que para cualquier otro llamador rigen las políticas RLS.
-- **PIN** hasheado con bcrypt (`pgcrypto`), verificado solo en la base. Bloqueo de 5 minutos tras 5 intentos fallidos; cada intento queda en `intentos_acceso`.
+- **Acceso con usuario y PIN.** El PIN se guarda hasheado con bcrypt (`pgcrypto`) y se verifica solo en la base. Bloqueo de 5 minutos tras 5 intentos fallidos; cada intento queda en `intentos_acceso`. El mensaje de error no revela si el usuario existe.
+- **Vencimiento del PIN:** cada 3 meses, salvo Gerencia. Con el PIN vencido la sesión solo permite entrar a «Cambiar mi PIN»; el middleware y las acciones del servidor bloquean todo lo demás.
 - **Sesión** en cookie `httpOnly`, `Secure`, `SameSite=Strict`, firmada, con rol, sucursal e id. Vence a los 15 minutos de inactividad y hay un botón «Cerrar sesión» siempre visible.
 - **Formularios públicos:** validación Zod en el servidor, campo trampa (honeypot) y límite de solicitudes por IP (tabla `solicitudes_publicas`, con la IP hasheada).
-- **Datos personales:** el seguimiento de turno exige patente + código; el historial, patente + código o teléfono registrado. No hay listados públicos de clientes.
+- **Datos personales:** el seguimiento de turno exige patente + código de turno. El historial exige patente + **código del vehículo** (2 letras y 2 dígitos, único por vehículo); no se puede ver con el código de turno ni con el teléfono. No hay listados públicos de clientes.
+- **Una patente, un vehículo:** la base rechaza un turno si la patente ya está registrada con otra marca, modelo o año.
 - **Auditoría:** cambios de estado y acciones sensibles quedan en `auditoria` (quién, qué, cuándo).
 - Cabeceras `X-Frame-Options`, `X-Content-Type-Options` y `Referrer-Policy`; las exportaciones CSV neutralizan fórmulas.
 
@@ -132,6 +140,7 @@ Reglas que viven en la base (`supabase/migrations/0003_funciones.sql`):
 - `sucursales.taller_referencia_id` es obligatorio si no hay taller, y un trigger exige que apunte a una sucursal con taller.
 - Todo turno tiene `sucursal_origen_id` y `sucursal_taller_id`; un trigger impide que el taller sea una sucursal sin taller. `derivado` es una columna generada (origen ≠ taller).
 - `reservar_turno()` y `reprogramar_turno()` toman un bloqueo por taller y día (`pg_advisory_xact_lock`) y verifican los boxes libres de la franja antes de guardar: no hay sobreturno aunque lleguen reservas simultáneas.
+- Los turnos los carga el cliente desde la web o el asesor del taller, que indica de qué sucursal llega el cliente. El vendedor no deriva.
 - `disponibilidad_taller()` calcula las franjas de 30 minutos según horario, duración del servicio y boxes. Todas las sucursales consultan esa misma agenda.
 
 ## Diagrama entidad-relación
@@ -146,6 +155,9 @@ erDiagram
   sucursales ||--o{ consultas : recibe
   sucursales ||--o{ turnos : "origen / taller"
   sucursales ||--o{ tasaciones : recibe
+  sucursales ||--o{ repuestos : inventario
+  repuestos ||--o{ repuestos_orden : "usado en"
+  ordenes_trabajo ||--o{ repuestos_orden : consume
   clientes ||--o{ vehiculos : posee
   clientes ||--o{ consultas : realiza
   clientes ||--o{ turnos : solicita
@@ -182,9 +194,11 @@ erDiagram
     int taller_referencia_id FK }
   empleados { int id PK
     text nombre
+    text usuario UK
     text rol
     int sucursal_id FK
     text pin_hash
+    timestamptz pin_cambiado_en
     int intentos_fallidos
     timestamptz bloqueado_hasta }
   unidades { int id PK
@@ -204,6 +218,7 @@ erDiagram
     int cliente_id FK }
   vehiculos { int id PK
     text patente UK
+    text codigo_auto UK
     int cliente_id FK }
   turnos { int id PK
     text codigo UK
@@ -232,6 +247,8 @@ erDiagram
 Ajustes sobre el modelo mínimo pedido:
 
 - `eventos_turno`: historial de estados de cada turno; alimenta la línea de tiempo del cliente.
+- `repuestos` y `repuestos_orden`: inventario de cada taller y repuestos usados por orden (descuenta stock con bloqueo de fila).
+- `empleados.usuario` y `pin_cambiado_en`; `vehiculos.codigo_auto`; `servicios.requiere_descripcion` (servicio «Otro»); `test_drives.hora` (horario libre).
 - `reservas_unidad` y `transferencias_unidad`: reserva con vencimiento a las 72 h y traslado entre sucursales.
 - `solicitudes_publicas`: límite de solicitudes por IP.
 - Vistas `v_ordenes` y `v_kpi_*` (ventas, stock, consultas, turnos, derivaciones, ocupación, demoras, satisfacción) para el taller y el tablero.
@@ -248,44 +265,46 @@ src/app/(publico)/     web del cliente
 src/app/acceso/        terminal de PIN
 src/app/(panel)/       vendedor, asesor, taller, gerencia, cuenta
 src/app/api/           cotización en PDF y exportación CSV
-tests/                 permisos, PIN y bloqueo, sobreturno, derivación
+tests/                 permisos, acceso y vencimiento del PIN, sobreturno, derivación, patente única
 ```
 
 ## Funcionalidades extra
 
-Recordatorios automáticos de turno y de próximo service · estado del auto visible para el cliente · tasación online del usado con fotos · encuesta de satisfacción · simulador de financiación adjunto a la cotización · comparador de 3 unidades · reserva de unidad por 72 h con vencimiento automático · transferencia entre sucursales con aprobación · cotización en PDF · alertas internas por rol (campanita) · actualización en tiempo real de agenda y kanban (Supabase Realtime) · auditoría · página de sucursales.
+Recordatorios automáticos de turno y de próximo service · estado del auto visible para el cliente · tasación online del usado con fotos · encuesta de satisfacción · simulador de financiación adjunto a la cotización · comparador de 3 unidades · reserva de unidad por 72 h con vencimiento automático · transferencia entre sucursales con aprobación · cotización en PDF · alertas internas por rol (campanita) · actualización en tiempo real de agenda y kanban (Supabase Realtime) · auditoría · página de sucursales · servicio «Otro» con descripción del problema · autocompletado opcional con datos ya registrados · inventario de repuestos con alerta de stock bajo.
 
 ## Guion de demostración (10 minutos)
 
 **1. Cliente (2 min)**
 - Inicio: buscador, promociones y sucursales con y sin taller.
-- Catálogo: filtrar «Usados», ordenar por precio; cada tarjeta muestra su sucursal. Marcar dos unidades y abrir el comparador.
-- Ficha: mover el simulador de financiación y pedir cotización con la simulación adjunta.
-- «Sacar turno»: elegir un servicio y **Sucursal 3**. Aparece el aviso *«Esta sucursal no tiene taller. Tu turno se realizará en Casa Central, a 4,2 km»*. Elegir día y hora, completar datos y anotar el código.
-- «Seguir mi turno» con patente `AB123CD` y código `DEMO23`: línea de tiempo en «Listo para retirar».
+- Catálogo: filtrar «Usados», ordenar por precio. Marcar dos unidades y abrir el comparador.
+- Ficha: mover el simulador y pedir cotización. En «Agendar test drive», elegir día y horario libre.
+- «Sacar turno»: elegir **Otro servicio** y describir el problema; elegir **Sucursal 3**: aparece el aviso *«Esta sucursal no tiene taller. Tu turno se realizará en Casa Central, a 4,2 km»*. Al cargar una patente ya registrada (`AB123CD`) el sistema ofrece completar marca, modelo y año. Al confirmar entrega dos códigos: el del turno y el del vehículo.
+- «Seguir mi turno» con `AB123CD` + `DEMO23`. «Historial del vehículo» con `AB123CD` + `TC18`.
 
-**2. Vendedor · Laura Méndez · 1111 (2 min)**
+**2. Vendedor · `laura.mendez` · 1111 (2 min)**
 - Bandeja: la cotización recién pedida figura como «Nueva»; las de más de 24 h, resaltadas.
 - Abrir una consulta, responder la cotización y descargar el PDF.
-- «Stock de la red»: pedir la transferencia de una unidad de otra sucursal.
-- «Derivar a taller»: cargar un turno para un cliente; el sistema ofrece Casa Central y muestra su agenda real.
+- «Cargar consulta»: al escribir el nombre de un cliente existente se ofrece completar sus datos.
+- «Test drives»: confirmar el pedido de la web, cambiarle el horario y agendar uno nuevo.
+- «Promociones»: solo ve las vigentes. «Stock de la red»: pedir una transferencia.
 - Escribir `/gerencia` en la barra de direcciones: vuelve a su panel.
 
-**3. Asesor · Martín Ríos · 2222 (2 min)**
-- «Por confirmar»: el turno derivado aparece con la insignia «Derivado desde Sucursal 3». La campanita lo cuenta.
-- Abrirlo, **confirmar turno**, completar la recepción (km, combustible, daños): se genera la orden de trabajo.
-- «Avisar por WhatsApp»: mensaje prearmado; el aviso queda en el historial.
-- «Recordatorios»: cola automática de turnos de mañana y próximos services.
+**3. Asesor · `martin.rios` · 2222 (2 min)**
+- «Por confirmar»: el turno pedido desde Sucursal 3 aparece con la insignia «Derivado desde Sucursal 3».
+- «Nuevo turno»: indicar de qué sucursal llega el cliente, cargarlo y, al terminar, **enviarle los datos por WhatsApp o email**.
+- Abrir un turno, confirmarlo, completar la recepción: se genera la orden de trabajo. Reprogramarlo y avisar al cliente.
+- «Historial»: buscar por patente o por apellido del cliente.
 
-**4. Jefe de taller · Carlos Duarte · 3333 (2 min)**
-- Kanban: la orden nueva está en «Pendiente de asignar». Elegir mecánico (se ve la carga de cada uno) y asignar.
-- Los trabajos que superaron el estimado están en rojo; «Demorados» exige el motivo.
-- «Ocupación»: porcentaje del día y de la semana.
+**4. Jefe de taller · `carlos.duarte` · 3333 (2 min)**
+- Kanban: asignar la orden nueva a un mecánico viendo la carga de cada uno. Los demorados están en rojo y exigen motivo.
+- «Repuestos»: cargar un repuesto a una orden (descuenta stock) y ver los que hay que reponer.
+- «Mecánicos»: agregar uno nuevo; aparece de inmediato para asignarle trabajos.
+- Ingresar como `hugo.benitez` / 9999 para mostrar el cambio obligatorio de PIN vencido.
 
-**5. Gerencia · Sofía Herrera · 4444 (2 min)**
-- Tablero: ventas por mes y sucursal, conversión consulta → venta, ocupación, demoras, derivaciones por sucursal de origen, ausentismo y satisfacción. Filtrar por sucursal y período.
+**5. Gerencia · `sofia.herrera` · 4444 (2 min)**
+- Tablero: ventas, conversión consulta → venta, ocupación, demoras, derivaciones por sucursal de origen, ausentismo y satisfacción. Filtrar por sucursal y período.
 - Exportar una tabla a CSV y el tablero a PDF.
-- «Empleados»: alta con PIN y cambio de PIN. «Sucursales»: `tiene taller` y taller de referencia.
+- «Promociones»: alta para la red o una sucursal. «Empleados»: alta con usuario y PIN. «Sucursales»: `tiene taller` y taller de referencia.
 - «Auditoría»: todo lo hecho durante la demo, con usuario y hora.
 
 ## Limitaciones conocidas del prototipo
@@ -293,4 +312,5 @@ Recordatorios automáticos de turno y de próximo service · estado del auto vis
 - Los avisos por WhatsApp y email abren la aplicación del asesor con el mensaje prearmado; no hay envío automático.
 - El tiempo real de un trabajo se mide en horas corridas desde que se inicia, sin descontar noches ni fines de semana.
 - El taller atiende de lunes a viernes; no hay feriados cargados.
+- Los teléfonos de los clientes precargados son cuatro números genéricos que se repiten; por eso un cliente se identifica por teléfono y nombre.
 - Las fotos que suben los vendedores se guardan reducidas en la base de datos, no en un almacenamiento de archivos.

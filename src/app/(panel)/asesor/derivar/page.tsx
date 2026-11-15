@@ -10,8 +10,8 @@ export default async function Nuevo() {
   const [srv, sucs] = await Promise.all([servicios(), sucursales()]);
   return (
     <div className="mx-auto max-w-3xl">
-      <Encabezado titulo="Nuevo turno" texto="Cargá el turno de un cliente que llama o se acerca al taller. Queda reservado en la agenda compartida." />
-      <AsistenteTurno servicios={srv} sucursales={sucs} modo="empleado" origenFijo={s.sucursalId} reservar={derivarTurno} />
+      <Encabezado titulo="Nuevo turno" texto="Cargá el turno de un cliente que llama, escribe o se acerca. Al terminar podés enviarle los datos por WhatsApp o email." />
+      <AsistenteTurno servicios={srv} sucursales={sucs} modo="empleado" tallerFijo={s.sucursalId} reservar={derivarTurno} />
     </div>
   );
 }

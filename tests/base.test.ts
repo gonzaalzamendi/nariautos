@@ -55,9 +55,19 @@ describe("login con PIN y bloqueo", () => {
     const { data } = await servidor.rpc("verificar_pin", { p_empleado: 1, p_pin: "1111" });
     expect(data).toMatchObject({ ok: true, rol: "vendedor", sucursal_id: 3, nombre: "Laura Méndez" });
   });
+  it("el acceso es por usuario y PIN, sin revelar si el usuario existe", async () => {
+    expect((await servidor.rpc("verificar_acceso", { p_usuario: "Laura.Mendez ", p_pin: "1111" })).data).toMatchObject({ ok: true, rol: "vendedor", pin_vencido: false });
+    expect((await servidor.rpc("verificar_acceso", { p_usuario: "no.existe", p_pin: "1111" })).data).toEqual({ ok: false, motivo: "invalido" });
+  });
+  it("el PIN vence a los 3 meses, salvo el de gerencia", async () => {
+    expect((await servidor.rpc("verificar_acceso", { p_usuario: "hugo.benitez", p_pin: "9999" })).data).toMatchObject({ ok: true, pin_vencido: true });
+    await servidor.from("empleados").update({ pin_cambiado_en: "2020-01-01" }).eq("usuario", "sofia.herrera");
+    expect((await servidor.rpc("verificar_acceso", { p_usuario: "sofia.herrera", p_pin: "4444" })).data).toMatchObject({ ok: true, rol: "gerencia", pin_vencido: false });
+    await servidor.from("empleados").update({ pin_cambiado_en: new Date().toISOString() }).eq("usuario", "sofia.herrera");
+  });
   it("tras 5 intentos fallidos bloquea 5 minutos, incluso con el PIN correcto, y registra cada intento", async () => {
     const { data: hash } = await servidor.rpc("hash_pin", { p_pin: "8642" });
-    const { data: e } = await servidor.from("empleados").insert({ nombre: "Empleado de Prueba", rol: "vendedor", sucursal_id: 1, pin_hash: hash }).select("id").single();
+    const { data: e } = await servidor.from("empleados").insert({ nombre: "Empleado de Prueba", usuario: "prueba.bloqueo", rol: "vendedor", sucursal_id: 1, pin_hash: hash }).select("id").single();
     for (let i = 1; i <= 4; i++) {
       const { data } = await servidor.rpc("verificar_pin", { p_empleado: e!.id, p_pin: "0000" });
       expect(data).toMatchObject({ ok: false, motivo: "pin", restantes: 5 - i });
@@ -94,6 +104,36 @@ describe("agenda compartida sin sobreturno", () => {
     const d = new Date(Date.now() + 60 * 86400000); while (d.getUTCDay() !== 6) d.setUTCDate(d.getUTCDate() + 1);
     expect((await reservar(1, 1, d.toISOString().slice(0, 10), "10:00")).error?.message).toContain("fuera de la atención");
     expect((await reservar(1, 1, diaHabil(60), "20:00")).error?.message).toContain("fuera de la atención");
+  });
+});
+
+describe("vehículos: una patente, un solo vehículo", () => {
+  const base = { p_servicio: 6, p_taller: 1, p_origen: 1, p_canal: "presencial", p_hora: "16:00", p_patente: "AB123CD", p_km: 93000, p_nombre: "Ana Belén Castro", p_telefono: "2281500249" };
+  it("rechaza un turno con una patente registrada y datos de vehículo distintos", async () => {
+    const r = await servidor.rpc("reservar_turno", { ...base, p_fecha: diaHabil(81), p_marca: "Ford", p_modelo: "Fiesta", p_anio: 2015 });
+    expect(r.error?.message).toContain("ya está registrada como Toyota Corolla 2018");
+    const anio = await servidor.rpc("reservar_turno", { ...base, p_fecha: diaHabil(81), p_marca: "Toyota", p_modelo: "Corolla", p_anio: 2019 });
+    expect(anio.error?.message).toContain("ya está registrada");
+  });
+  it("acepta la misma patente con los mismos datos y conserva el código del vehículo", async () => {
+    const r = await servidor.rpc("reservar_turno", { ...base, p_fecha: diaHabil(81), p_marca: "toyota", p_modelo: " Corolla", p_anio: 2018 });
+    expect(r.error).toBeNull();
+    turnos.push(r.data.id);
+    const { data: v } = await servidor.from("vehiculos").select("codigo_auto, marca").eq("patente", "AB123CD").single();
+    expect(v).toEqual({ codigo_auto: "TC18", marca: "Toyota" });
+  });
+  it("cada vehículo nuevo recibe un código propio de 2 letras y 2 dígitos", async () => {
+    const r = await reservar(1, 1, diaHabil(81), "08:00");
+    const { data: v } = await servidor.from("vehiculos").select("codigo_auto").eq("id", r.data.vehiculo_id).single();
+    expect(v!.codigo_auto).toMatch(/^[A-Z]{2}\d{2}$/);
+  });
+  it("el servicio «Otro» exige describir el problema", async () => {
+    const { data: otro } = await servidor.from("servicios").select("id").eq("requiere_descripcion", true).single();
+    expect((await reservar(1, 1, diaHabil(81), "09:00", otro!.id)).error?.message).toContain("describí brevemente el problema");
+  });
+  it("ya no existe el canal «redes sociales»", async () => {
+    const r = await servidor.rpc("reservar_turno", { ...base, p_canal: "redes", p_fecha: diaHabil(81), p_hora: "10:00", p_marca: "Toyota", p_modelo: "Corolla", p_anio: 2018 });
+    expect(r.error).not.toBeNull();
   });
 });
 

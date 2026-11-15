@@ -6,7 +6,7 @@ import { BotonLink, Encabezado, Insignia, Tabla } from "@/components/ui";
 export const metadata = { title: "Consultas de la red" };
 export default async function Consultas() {
   await exigir("gerencia");
-  const cs = await leer<any[]>(db().from("consultas").select("*, clientes(nombre), unidades(marca, modelo), sucursales(nombre), empleados(nombre)").order("creado_en", { ascending: false }).limit(200));
+  const cs = await leer<any[]>(db().from("consultas").select("*, clientes(nombre), unidades(marca, modelo), sucursales(nombre), empleados(nombre)").neq("tipo", "test_drive").order("creado_en", { ascending: false }).limit(200));
   const vieja = (c: any) => c.estado === "nueva" && Date.now() - new Date(c.creado_en).getTime() > 24 * 3600e3;
   return (
     <>

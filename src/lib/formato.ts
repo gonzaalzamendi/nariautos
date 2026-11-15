@@ -44,13 +44,13 @@ export const ETIQUETA: Record<string, string> = {
   // consultas
   nueva: "Nueva", en_seguimiento: "En seguimiento", cotizada: "Cotizada", test_drive_agendado: "Test drive agendado", ganada: "Ganada", perdida: "Perdida",
   cotizacion: "Cotización", test_drive: "Test drive", general: "Consulta general",
-  web: "Web", telefono: "Teléfono", whatsapp: "WhatsApp", redes: "Redes sociales", presencial: "Presencial",
+  web: "Web", telefono: "Teléfono", whatsapp: "WhatsApp", presencial: "Presencial",
   // unidades
   disponible: "Disponible", reservada: "Reservada", vendida: "Vendida", "0km": "0 km", usado: "Usado",
   nafta: "Nafta", diesel: "Diésel", hibrido: "Híbrido", electrico: "Eléctrico", gnc: "GNC", manual: "Manual", automatica: "Automática",
   // órdenes
   pendiente: "Pendiente de asignar", asignada: "Asignada", espera_repuestos: "En espera de repuestos", terminada: "Terminada", cerrada: "Cerrada",
-  manana: "Mañana (9 a 12 h)", mediodia: "Mediodía (12 a 15 h)", tarde: "Tarde (15 a 18 h)", realizado: "Realizado",
+  realizado: "Realizado",
   activa: "Activa", vencida: "Vencida", cancelada: "Cancelada", concretada: "Concretada", solicitada: "Solicitada", aprobada: "Aprobada", rechazada: "Rechazada",
   respondida: "Respondida", enviada: "Enviada", excelente: "Excelente", muy_bueno: "Muy bueno", bueno: "Bueno", regular: "Regular",
   recordatorio_turno: "Recordatorio de turno", recordatorio_service: "Próximo service", estado: "Aviso de estado", encuesta: "Encuesta",

@@ -48,6 +48,11 @@ describe("middleware", () => {
     expect(cookie.toLowerCase()).toContain("httponly");
     expect(cookie.toLowerCase()).toContain("samesite=strict");
   });
+  it("con el PIN vencido solo se puede entrar a cambiarlo", async () => {
+    const vencido = { ...laura, cambiarPin: true };
+    for (const r of ["/vendedor", "/vendedor/unidades"]) expect(new URL((await pedir(r, vencido)).headers.get("location")!).pathname).toBe("/cuenta");
+    expect((await pedir("/cuenta", vencido)).headers.get("location")).toBeNull();
+  });
   it("una cookie adulterada no sirve como sesión", async () => {
     const token = await firmarSesion(laura);
     const [c, p, f] = token.split(".");

@@ -167,3 +167,73 @@ export async function guardarMotivoDemora(_: Estado, fd: FormData): Promise<Esta
   await auditar(s, "Motivo de demora", "ordenes_trabajo", o.id, { motivo: p.data.motivo });
   return listo("Motivo de la demora guardado.");
 }
+
+// ---------- Repuestos y mecánicos (jefe de taller) ----------
+const idOpc = z.preprocess((v) => (v === "" || v == null ? undefined : v), zId.optional());
+
+export async function guardarRepuesto(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigirSucursal("jefe_taller");
+  const p = z.object({ id: idOpc, codigo: z.string().trim().toUpperCase().min(2, "Ingresá el código del repuesto.").max(20), nombre: z.string().trim().min(3, "Ingresá el nombre del repuesto.").max(80),
+    stock: zEntero.min(0, "El stock no puede ser negativo.").max(100000), stock_minimo: zEntero.min(0, "El stock mínimo no puede ser negativo.").max(100000), precio: z.coerce.number().min(0, "El precio no puede ser negativo.") }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  const { id, ...fila } = p.data;
+  const r = id ? await db().from("repuestos").update(fila).eq("id", id).eq("sucursal_id", s.sucursalId).select("id").maybeSingle()
+    : await db().from("repuestos").insert({ ...fila, sucursal_id: s.sucursalId }).select("id").single();
+  if (r.error) return { error: r.error.code === "23505" ? `Ya existe un repuesto con el código ${fila.codigo} en tu taller.` : mensajeError(r.error) };
+  if (!r.data) return AJENO;
+  await auditar(s, id ? "Edición de repuesto" : "Alta de repuesto", "repuestos", r.data.id, { codigo: fila.codigo, stock: fila.stock });
+  return listo(id ? "Repuesto actualizado." : "Repuesto agregado al inventario.");
+}
+
+export async function ingresarStock(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigirSucursal("jefe_taller");
+  const p = z.object({ repuesto: zId, cantidad: zEntero.min(1, "Ingresá una cantidad mayor a cero.").max(10000) }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  const { data: r } = await db().from("repuestos").select("id, stock, nombre").eq("id", p.data.repuesto).eq("sucursal_id", s.sucursalId).maybeSingle();
+  if (!r) return AJENO;
+  await db().from("repuestos").update({ stock: r.stock + p.data.cantidad }).eq("id", r.id);
+  await auditar(s, "Ingreso de repuestos", "repuestos", r.id, { cantidad: p.data.cantidad });
+  return listo(`Se sumaron ${p.data.cantidad} unidades de ${r.nombre}.`);
+}
+
+export async function usarRepuesto(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigirSucursal("jefe_taller");
+  const p = z.object({ orden: zId, repuesto: zId, cantidad: zEntero.min(1, "Ingresá una cantidad mayor a cero.").max(1000) }).safeParse(objeto(fd));
+  if (!p.success) return { error: "Elegí la orden, el repuesto y la cantidad." };
+  const o = await ordenPropia(s, p.data.orden);
+  const { data: r } = await db().from("repuestos").select("id, sucursal_id").eq("id", p.data.repuesto).maybeSingle();
+  if (!o || !r || r.sucursal_id !== s.sucursalId) return AJENO;
+  if (o.estado === "cerrada") return { error: "Esa orden ya está cerrada." };
+  const { error } = await db().rpc("usar_repuesto", { p_orden: o.id, p_repuesto: r.id, p_cantidad: p.data.cantidad });
+  if (error) return { error: mensajeError(error) };
+  await auditar(s, "Repuesto usado en orden", "ordenes_trabajo", o.id, { repuesto: r.id, cantidad: p.data.cantidad });
+  return listo("Repuesto cargado a la orden y descontado del stock.");
+}
+
+export async function guardarMecanico(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigirSucursal("jefe_taller");
+  const p = z.object({ id: idOpc, nombre: z.string().trim().min(3, "Ingresá nombre y apellido del mecánico.").max(80), especialidad: zOpcional(80) }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  const fila = { nombre: p.data.nombre, especialidad: p.data.especialidad ?? null };
+  const r = p.data.id ? await db().from("mecanicos").update(fila).eq("id", p.data.id).eq("sucursal_id", s.sucursalId).select("id").maybeSingle()
+    : await db().from("mecanicos").insert({ ...fila, sucursal_id: s.sucursalId }).select("id").single();
+  if (r.error) return { error: mensajeError(r.error) };
+  if (!r.data) return AJENO;
+  await auditar(s, p.data.id ? "Edición de mecánico" : "Alta de mecánico", "mecanicos", r.data.id, fila);
+  return listo(p.data.id ? "Datos del mecánico guardados." : `${fila.nombre} ya está disponible para asignarle trabajos.`);
+}
+
+export async function alternarMecanico(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigirSucursal("jefe_taller");
+  const p = z.object({ mecanico: zId }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  const { data: m } = await db().from("mecanicos").select("id, activo, nombre").eq("id", p.data.mecanico).eq("sucursal_id", s.sucursalId).maybeSingle();
+  if (!m) return AJENO;
+  if (m.activo) {
+    const { count } = await db().from("v_ordenes").select("id", { count: "exact", head: true }).eq("mecanico_id", m.id).in("estado", ["asignada", "en_reparacion", "espera_repuestos"]);
+    if (count) return { error: `${m.nombre} tiene ${count} ${count === 1 ? "trabajo" : "trabajos"} en curso. Reasignalos o terminalos antes de darlo de baja.` };
+  }
+  await db().from("mecanicos").update({ activo: !m.activo }).eq("id", m.id);
+  await auditar(s, m.activo ? "Baja de mecánico" : "Reactivación de mecánico", "mecanicos", m.id);
+  return listo(m.activo ? `${m.nombre} ya no aparece para asignar trabajos.` : `${m.nombre} vuelve a estar disponible.`);
+}

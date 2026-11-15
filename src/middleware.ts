@@ -15,6 +15,8 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
     if (!roles.includes(sesion.rol)) return NextResponse.redirect(new URL(INICIO[sesion.rol], req.url));
+    // PIN vencido (más de 3 meses): solo puede entrar a cambiarlo
+    if (sesion.cambiarPin && ruta !== "/cuenta") return NextResponse.redirect(new URL("/cuenta", req.url));
   }
   const res = NextResponse.next();
   if (sesion && roles) res.cookies.set(COOKIE_SESION, await firmarSesion(sesion), opcionesCookie);

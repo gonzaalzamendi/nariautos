@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
-import { agregarSeguimiento, cerrarConsulta, gestionarTestDrive, responderCotizacion } from "@/lib/acciones/ventas";
-import { etiqueta, fecha, fechaHora, linkEmail, linkWhatsApp, moneda } from "@/lib/formato";
-import { AreaTexto, BotonLink, Dato, Encabezado, Entrada, Insignia, Selector, Tarjeta } from "@/components/ui";
+import { agregarSeguimiento, cerrarConsulta, responderCotizacion } from "@/lib/acciones/ventas";
+import { etiqueta, fechaHora, linkEmail, linkWhatsApp, moneda } from "@/lib/formato";
+import { AreaTexto, BotonLink, Dato, Encabezado, Entrada, Insignia, Tarjeta } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
 
 export const metadata = { title: "Consulta" };
@@ -12,8 +12,9 @@ export default async function Consulta({ params }: { params: Promise<{ id: strin
   const s = await exigirSucursal("vendedor");
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const c = (await db().from("consultas").select("*, clientes(*), unidades(id, marca, modelo, version, precio, estado, sucursales(nombre)), seguimientos_consulta(id, nota, creado_en, empleados(nombre)), test_drives(*)").eq("id", id).eq("sucursal_id", s.sucursalId).maybeSingle()).data as any;
+  const c = (await db().from("consultas").select("*, clientes(*), unidades(id, marca, modelo, version, precio, estado, sucursales(nombre)), seguimientos_consulta(id, nota, creado_en, empleados(nombre))").eq("id", id).eq("sucursal_id", s.sucursalId).maybeSingle()).data as any;
   if (!c) notFound();
+  if (c.tipo === "test_drive") redirect("/vendedor/test-drives");
   const abierta = !["ganada", "perdida"].includes(c.estado);
   const u = c.unidades, nombre = c.clientes.nombre.split(" ")[0];
   const final = c.precio_cotizado ? Number(c.precio_cotizado) - Number(c.bonificacion ?? 0) : null;
@@ -40,25 +41,6 @@ export default async function Consulta({ params }: { params: Promise<{ id: strin
               {c.clientes.email && <BotonLink href={linkEmail(c.clientes.email, "Tu consulta en NariAutos", msj)} variante="contorno" chico>Enviar email</BotonLink>}
             </div>
           </Tarjeta>
-          {c.test_drives.map((t: any) => (
-            <Tarjeta key={t.id} titulo="Test drive" accion={<Insignia estado={t.estado}>{etiqueta(t.estado)}</Insignia>}>
-              <p className="text-sm">Pedido para el <strong className="cifras">{fecha(t.fecha)}</strong>, {etiqueta(t.franja).toLowerCase()}.</p>
-              {["pendiente", "confirmado"].includes(t.estado) && abierta && (
-                <div className="mt-3 space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {t.estado === "pendiente" && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "confirmar" }} variante="primario">Confirmar test drive</BotonAccion>}
-                    {t.estado === "confirmado" && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "realizado" }} variante="secundario">Marcar como realizado</BotonAccion>}
-                    <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "cancelar" }} variante="peligro" confirmar="¿Cancelar este test drive?">Cancelar test drive</BotonAccion>
-                  </div>
-                  <FormAccion accion={gestionarTestDrive} ocultos={{ test: t.id, accion: "reprogramar" }} className="flex flex-wrap items-end gap-2">
-                    <Entrada etiqueta="Nueva fecha" name="fecha" type="date" required defaultValue={t.fecha} />
-                    <Selector etiqueta="Franja" name="franja" defaultValue={t.franja} opciones={[["manana", "Mañana"], ["mediodia", "Mediodía"], ["tarde", "Tarde"]]} />
-                    <BotonEnviar variante="contorno">Reprogramar test drive</BotonEnviar>
-                  </FormAccion>
-                </div>
-              )}
-            </Tarjeta>
-          ))}
           <Tarjeta titulo="Cotización" accion={c.precio_cotizado ? <BotonLink href={`/api/cotizacion/${c.id}`} variante="contorno" chico target="_blank">Descargar PDF</BotonLink> : undefined}>
             {c.precio_cotizado && <p className="cifras mb-4 rounded-md bg-fondo px-3 py-2 text-sm">Cotizado el {fechaHora(c.cotizada_en)}: {moneda(c.precio_cotizado)} − bonificación {moneda(c.bonificacion)} = <strong>{moneda(final)}</strong>{c.financiacion_ofrecida && <><br />Financiación: {c.financiacion_ofrecida}</>}</p>}
             {abierta ? (

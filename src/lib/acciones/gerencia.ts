@@ -12,33 +12,34 @@ const hash = async (pin: string) => (await db().rpc("hash_pin", { p_pin: pin }))
 
 export async function guardarEmpleado(_: Estado, fd: FormData): Promise<Estado> {
   const s = await exigir("gerencia");
-  const p = z.object({ id: idOpcional, nombre: z.string().trim().min(3, "Ingresá nombre y apellido.").max(80), rol: z.enum(["vendedor", "asesor", "jefe_taller", "gerencia"]), sucursal: idOpcional, pin: z.preprocess((v) => v || undefined, zPin.optional()) }).safeParse(objeto(fd));
+  const p = z.object({ id: idOpcional, nombre: z.string().trim().min(3, "Ingresá nombre y apellido.").max(80), usuario: z.string().trim().toLowerCase().regex(/^[a-z0-9.]{3,30}$/, "El usuario lleva entre 3 y 30 letras minúsculas, números o puntos, sin espacios ni acentos. Ej.: laura.mendez"), rol: z.enum(["vendedor", "asesor", "jefe_taller", "gerencia"]), sucursal: idOpcional, pin: z.preprocess((v) => v || undefined, zPin.optional()) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
-  const { id, nombre, rol, sucursal, pin } = p.data;
+  const { id, nombre, usuario, rol, sucursal, pin } = p.data;
   if (rol !== "gerencia" && !sucursal) return { error: "Elegí la sucursal del empleado." };
   if (sucursal && ["asesor", "jefe_taller"].includes(rol)) {
     const { data: suc } = await db().from("sucursales").select("tiene_taller").eq("id", sucursal).single();
     if (!suc?.tiene_taller) return { error: "Los asesores y jefes de taller trabajan en una sucursal con taller. Elegí Casa Central o Sucursal 2." };
   }
-  const fila = { nombre, rol, sucursal_id: rol === "gerencia" ? null : sucursal };
+  const fila = { nombre, usuario, rol, sucursal_id: rol === "gerencia" ? null : sucursal };
+  const repetido = (e: any) => (e.code === "23505" ? "Ese nombre de usuario ya está en uso. Elegí otro." : mensajeError(e));
   if (id) {
     const { error } = await db().from("empleados").update(fila).eq("id", id);
-    if (error) return { error: mensajeError(error) };
+    if (error) return { error: repetido(error) };
     await auditar(s, "Edición de empleado", "empleados", id, fila);
     return listo("Datos del empleado guardados.");
   }
   if (!pin) return { error: "Definí un PIN de 4 dígitos para el nuevo empleado." };
   const { data, error } = await db().from("empleados").insert({ ...fila, pin_hash: await hash(pin) }).select("id").single();
-  if (error) return { error: mensajeError(error) };
+  if (error) return { error: repetido(error) };
   await auditar(s, "Alta de empleado", "empleados", data.id, fila);
-  return listo(`${nombre} ya puede ingresar con su PIN.`);
+  return listo(`${nombre} ya puede ingresar con el usuario ${usuario} y su PIN.`);
 }
 
 export async function cambiarPinEmpleado(_: Estado, fd: FormData): Promise<Estado> {
   const s = await exigir("gerencia");
   const p = z.object({ empleado: zId, pin: zPin }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
-  const { error } = await db().from("empleados").update({ pin_hash: await hash(p.data.pin), intentos_fallidos: 0, bloqueado_hasta: null }).eq("id", p.data.empleado);
+  const { error } = await db().from("empleados").update({ pin_hash: await hash(p.data.pin), pin_cambiado_en: new Date().toISOString(), intentos_fallidos: 0, bloqueado_hasta: null }).eq("id", p.data.empleado);
   if (error) return { error: mensajeError(error) };
   await auditar(s, "Cambio de PIN por gerencia", "empleados", p.data.empleado);
   return listo("PIN actualizado y bloqueo levantado.");

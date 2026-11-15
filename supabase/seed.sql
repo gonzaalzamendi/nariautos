@@ -2,7 +2,7 @@
 truncate sucursales, empleados, mecanicos, clientes, vehiculos, unidades, fotos_unidad, promociones, promocion_unidad,
   consultas, seguimientos_consulta, test_drives, servicios, turnos, eventos_turno, ordenes_trabajo, asignaciones,
   historial_service, notificaciones, encuestas, tasaciones, reservas_unidad, transferencias_unidad, auditoria,
-  intentos_acceso, solicitudes_publicas restart identity cascade;
+  intentos_acceso, solicitudes_publicas, repuestos, repuestos_orden restart identity cascade;
 
 -- n-ésimo día hábil respecto de hoy (0 = hoy o el próximo lunes si es fin de semana)
 create or replace function pg_temp.habil(n int) returns date language plpgsql as $$
@@ -25,16 +25,18 @@ insert into sucursales (nombre, direccion, localidad, telefono, email, horario_a
  ('Sucursal 3', 'Av. Espora 890', 'Tandil', '0249 442-3000', 'sucursal3@nariautos.example', 'Lunes a viernes de 9 a 18 · Sábados de 9 a 13', -37.3398, -59.1105, false, 1, 4.2),
  ('Sucursal 4', 'Ruta Nacional 3 km 299', 'Azul', '02281 43-4000', 'sucursal4@nariautos.example', 'Lunes a viernes de 9 a 18 · Sábados de 9 a 13', -36.8102, -59.8801, false, 2, 6.5);
 
-insert into empleados (nombre, rol, sucursal_id, pin_hash) values
- ('Laura Méndez', 'vendedor', 3, hash_pin('1111')),
- ('Martín Ríos', 'asesor', 1, hash_pin('2222')),
- ('Carlos Duarte', 'jefe_taller', 1, hash_pin('3333')),
- ('Sofía Herrera', 'gerencia', null, hash_pin('4444')),
- ('Diego Paz', 'vendedor', 1, hash_pin('5555')),
- ('Valeria Sosa', 'vendedor', 2, hash_pin('6666')),
- ('Nicolás Ferreyra', 'vendedor', 4, hash_pin('7777')),
- ('Paula Giménez', 'asesor', 2, hash_pin('8888')),
- ('Hugo Benítez', 'jefe_taller', 2, hash_pin('9999'));
+insert into empleados (nombre, usuario, rol, sucursal_id, pin_hash) values
+ ('Laura Méndez', 'laura.mendez', 'vendedor', 3, hash_pin('1111')),
+ ('Martín Ríos', 'martin.rios', 'asesor', 1, hash_pin('2222')),
+ ('Carlos Duarte', 'carlos.duarte', 'jefe_taller', 1, hash_pin('3333')),
+ ('Sofía Herrera', 'sofia.herrera', 'gerencia', null, hash_pin('4444')),
+ ('Diego Paz', 'diego.paz', 'vendedor', 1, hash_pin('5555')),
+ ('Valeria Sosa', 'valeria.sosa', 'vendedor', 2, hash_pin('6666')),
+ ('Nicolás Ferreyra', 'nicolas.ferreyra', 'vendedor', 4, hash_pin('7777')),
+ ('Paula Giménez', 'paula.gimenez', 'asesor', 2, hash_pin('8888')),
+ ('Hugo Benítez', 'hugo.benitez', 'jefe_taller', 2, hash_pin('9999'));
+-- Hugo tiene el PIN vencido (más de 3 meses): sirve para mostrar el cambio obligatorio
+update empleados set pin_cambiado_en = now() - interval '100 days' where usuario = 'hugo.benitez';
 
 insert into mecanicos (nombre, sucursal_id, especialidad) values
  ('Jorge Acosta', 1, 'Mecánica general'), ('Emiliano Vera', 1, 'Frenos y suspensión'), ('Tomás Leiva', 1, 'Electricidad y diagnóstico'),
@@ -49,6 +51,8 @@ insert into servicios (nombre, descripcion, duracion_min, precio_orientativo) va
  ('Alineación y balanceo', 'Alineación de tren delantero y balanceo de las cuatro ruedas.', 60, 68000),
  ('Cambio de batería', 'Control del sistema de carga y reemplazo de batería.', 30, 45000),
  ('Aire acondicionado', 'Control de presión, carga de gas y limpieza del circuito.', 90, 140000);
+insert into servicios (nombre, descripcion, duracion_min, precio_orientativo, requiere_descripcion) values
+ ('Otro servicio', 'Un problema distinto a los servicios listados. Contanos brevemente qué le pasa al vehículo.', 60, 0, true);
 
 insert into unidades (sucursal_id, marca, modelo, version, anio, km, condicion, precio, combustible, transmision, color, fecha_ingreso, estado, fecha_venta, vendedor_id)
 select s, ma, mo, ve, an, km, co, pr * 1000000, cb, tr, cl, hoy_ar() - di, es, case when dv is null then null else hoy_ar() - dv end,
@@ -142,6 +146,10 @@ insert into clientes (nombre, telefono, email) values
  ('Agustina Leal','2494501127','agustina.leal@correo.example'),('Walter Núñez','2494501128',null),
  ('Mónica Salas','2281501129','monica.salas@correo.example'),('Leandro Toledo','2494501130','leandro.toledo@correo.example');
 
+-- Teléfonos genéricos para los datos precargados (se repiten a propósito)
+update clientes set telefono = (array['2281500249','2494284826','2494374413','2494009763'])[1 + (id - 1) % 4] where true;
+update sucursales set telefono = (array['2494284826','2281500249','2494374413','2494009763'])[id] where true;
+
 insert into vehiculos (patente, marca, modelo, anio, km_actual, cliente_id) values
  ('AB123CD','Toyota','Corolla',2018,92000,1),('AC456EF','Volkswagen','Gol Trend',2019,78000,2),('AD789GH','Ford','Ranger',2020,110000,3),
  ('AE012IJ','Chevrolet','Onix',2021,54000,4),('AF345KL','Fiat','Cronos',2022,41000,5),('AA678MN','Renault','Sandero',2017,128000,6),
@@ -151,6 +159,9 @@ insert into vehiculos (patente, marca, modelo, anio, km_actual, cliente_id) valu
  ('AB345EF','Nissan','Kicks',2018,95000,16),('AC678GH','Jeep','Renegade',2019,81000,17),('AD901IJ','Citroën','C3',2020,52000,18),
  ('AE234KL','Honda','HR-V',2021,47000,19),('NRS789','Chevrolet','Corsa',2014,165000,20),('AF567MN','Toyota','Yaris',2022,33000,21),
  ('AH890OP','Ford','Territory',2024,18000,22);
+
+-- Código de vehículo conocido para la demostración del historial
+update vehiculos set codigo_auto = 'TC18' where patente = 'AB123CD';
 
 -- 30 turnos: (código, servicio, vehículo, origen, taller, canal, día hábil relativo, hora, estado)
 insert into turnos (codigo, servicio_id, vehiculo_id, cliente_id, sucursal_origen_id, sucursal_taller_id, canal_origen, fecha, hora, duracion_min, estado, creado_por, creado_en)
@@ -164,7 +175,7 @@ from (values
  ('DEMO07',1,7,3,1,'presencial',-20,'08:00','entregado'),('DEMO08',8,8,2,2,'web',-17,'09:30','entregado'),
  ('DEMO09',2,9,1,1,'web',-13,'08:00','entregado'),('DEMO10',4,10,4,2,'telefono',-10,'10:00','entregado'),
  ('DEMO11',1,11,2,2,'web',-7,'08:00','entregado'),('DEMO12',6,12,3,1,'presencial',-4,'14:00','entregado'),
- ('DEMO13',5,13,1,1,'web',-15,'15:00','ausente'),('DEMO14',1,14,4,2,'redes',-6,'11:00','ausente'),
+ ('DEMO13',5,13,1,1,'web',-15,'15:00','ausente'),('DEMO14',1,14,4,2,'whatsapp',-6,'11:00','ausente'),
  ('DEMO15',7,15,1,1,'web',-9,'12:00','cancelado'),('DEMO16',6,16,2,2,'web',3,'09:00','cancelado'),
  ('DEMO17',3,17,1,1,'telefono',-2,'08:00','rechazado'),
  ('DEMO18',2,18,1,1,'web',0,'08:00','recibido'),('DEMO19',4,19,3,1,'presencial',0,'08:30','recibido'),
@@ -239,31 +250,31 @@ select x.tipo, x.canal, x.est, x.suc, case when x.est = 'nueva' then null else (
   case when x.est in ('cotizada','ganada') then now() - (x.dias || ' days')::interval + interval '5 hours' end
 from (values
  ('cotizacion','web','nueva',3,23,23,0,null,null),('test_drive','web','nueva',3,25,24,1,null,null),('general','whatsapp','nueva',3,null,25,2,null,null),
- ('cotizacion','web','nueva',1,1,26,0,null,null),('cotizacion','redes','nueva',2,13,27,3,null,null),
+ ('cotizacion','web','nueva',1,1,26,0,null,null),('cotizacion','whatsapp','nueva',2,13,27,3,null,null),
  ('cotizacion','telefono','en_seguimiento',3,27,28,4,2,null),('general','presencial','en_seguimiento',3,29,29,6,1,null),
  ('cotizacion','web','en_seguimiento',1,3,30,5,6,null),('test_drive','whatsapp','en_seguimiento',4,35,17,7,3,null),
  ('cotizacion','web','cotizada',3,24,18,8,4,null),('cotizacion','whatsapp','cotizada',3,31,19,10,1,null),
- ('cotizacion','redes','cotizada',2,14,20,9,12,null),('cotizacion','web','cotizada',4,36,21,12,5,null),
+ ('cotizacion','whatsapp','cotizada',2,14,20,9,12,null),('cotizacion','web','cotizada',4,36,21,12,5,null),
  ('test_drive','web','test_drive_agendado',3,26,22,3,2,null),('test_drive','telefono','test_drive_agendado',1,8,23,4,1,null),
  ('test_drive','web','test_drive_agendado',2,15,24,2,7,null),
  ('cotizacion','presencial','ganada',3,53,1,16,1,null),('cotizacion','web','ganada',1,46,2,9,3,null),
  ('cotizacion','whatsapp','ganada',2,50,11,14,2,null),('test_drive','web','ganada',4,55,12,20,4,null),
  ('cotizacion','telefono','ganada',1,45,3,28,2,null),
- ('cotizacion','web','perdida',3,28,4,22,30,'Compró en otra concesionaria'),('general','redes','perdida',2,22,13,18,26,'No respondió a los contactos'),
+ ('cotizacion','web','perdida',3,28,4,22,30,'Compró en otra concesionaria'),('general','whatsapp','perdida',2,22,13,18,26,'No respondió a los contactos'),
  ('cotizacion','web','perdida',1,10,5,25,8,'Precio fuera de su presupuesto'),('cotizacion','whatsapp','perdida',4,38,14,30,5,'No consiguió financiación')
 ) as x(tipo, canal, est, suc, uni, cli, dias, hr, motivo) left join unidades u on u.id = x.uni;
 
 insert into seguimientos_consulta (consulta_id, empleado_id, nota, creado_en)
 select c.id, c.vendedor_id, 'Se contactó al cliente y se envió información de la unidad.', c.primera_respuesta_en from consultas c where c.primera_respuesta_en is not null;
-insert into test_drives (consulta_id, unidad_id, fecha, franja, estado)
-select c.id, c.unidad_id, pg_temp.habil(2 + c.id % 3), (array['manana','mediodia','tarde'])[1 + c.id % 3],
+insert into test_drives (consulta_id, unidad_id, fecha, hora, estado)
+select c.id, c.unidad_id, pg_temp.habil(2 + c.id % 3), (array['10:00','11:30','16:00'])[1 + c.id % 3]::time,
        case when c.estado = 'test_drive_agendado' then 'confirmado' when c.estado = 'ganada' then 'realizado' else 'pendiente' end
 from consultas c where c.tipo = 'test_drive';
 
 insert into reservas_unidad (unidad_id, vendedor_id, cliente_nombre, cliente_telefono, vence_en, creado_en) values
- (6, 5, 'Rodrigo Campos', '2281501126', now() + interval '40 hours', now() - interval '32 hours'),
- (18, 6, 'Mónica Salas', '2281501129', now() + interval '60 hours', now() - interval '12 hours'),
- (30, 1, 'Daniela Ponce', '2494501117', now() + interval '9 hours', now() - interval '63 hours');
+ (6, 5, 'Rodrigo Campos', '2494284826', now() + interval '40 hours', now() - interval '32 hours'),
+ (18, 6, 'Mónica Salas', '2281500249', now() + interval '60 hours', now() - interval '12 hours'),
+ (30, 1, 'Daniela Ponce', '2494374413', now() + interval '9 hours', now() - interval '63 hours');
 insert into transferencias_unidad (unidad_id, origen_id, destino_id, solicitada_por, motivo) values
  (9, 1, 3, 1, 'Cliente de Sucursal 3 interesado en verla esta semana.');
 insert into tasaciones (cliente_id, sucursal_id, unidad_interes_id, marca, modelo, anio, km, estado_general, comentarios) values
@@ -271,5 +282,13 @@ insert into tasaciones (cliente_id, sucursal_id, unidad_interes_id, marca, model
  (28, 1, 1, 'Toyota', 'Hilux', 2017, 190000, 'bueno', 'Uso rural, cubiertas nuevas.');
 insert into auditoria (empleado_id, empleado_nombre, accion, entidad, entidad_id, detalle, creado_en) values
  (4, 'Sofía Herrera', 'Carga inicial de datos', 'sistema', null, '{"origen":"seed"}', now() - interval '1 day');
+
+insert into repuestos (sucursal_id, codigo, nombre, stock, stock_minimo, precio)
+select s, c, n, case when s = 1 then st else greatest(st - 3, 0) end, mi, pr from generate_series(1, 2) s, (values
+ ('FA-1001','Filtro de aceite',18,6,14500),('FA-1002','Filtro de aire',12,5,19800),('FH-1003','Filtro de habitáculo',9,4,17200),
+ ('AC-2001','Aceite sintético 5W30 (litro)',64,20,13900),('PF-3001','Juego de pastillas de freno delanteras',7,4,68500),
+ ('DF-3002','Disco de freno delantero',3,4,92000),('BJ-4001','Bujía de iridio',22,8,11800),('BT-5001','Batería 12V 65Ah',2,3,168000),
+ ('LF-6001','Líquido de frenos DOT4 (500 ml)',10,4,9800),('GA-7001','Gas refrigerante R134a (lata)',5,3,21500)
+) r(c, n, st, mi, pr);
 
 select mantenimiento();

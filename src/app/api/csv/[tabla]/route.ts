@@ -10,7 +10,7 @@ const TABLAS: Record<string, { fuente: string; columnas: string; orden?: string 
   derivaciones: { fuente: "v_kpi_derivaciones", columnas: "*", orden: "mes" },
   demoras: { fuente: "v_ordenes", columnas: "id, fecha, patente, servicio, mecanico, minutos_estimados, minutos_reales, demorado, motivo_demora, estado", orden: "fecha" },
   encuestas: { fuente: "encuestas", columnas: "id, puntaje, comentario, creado_en, turnos(codigo)", orden: "creado_en" },
-  empleados: { fuente: "empleados", columnas: "id, nombre, rol, activo, creado_en, sucursales(nombre)", orden: "nombre" },
+  empleados: { fuente: "empleados", columnas: "id, nombre, usuario, rol, activo, pin_cambiado_en, creado_en, sucursales(nombre)", orden: "nombre" },
   auditoria: { fuente: "auditoria", columnas: "id, creado_en, empleado_nombre, accion, entidad, entidad_id, detalle", orden: "creado_en" },
   unidades: { fuente: "unidades", columnas: "id, marca, modelo, version, anio, km, condicion, precio, estado, fecha_ingreso, fecha_venta, sucursales(nombre)", orden: "id" },
 };

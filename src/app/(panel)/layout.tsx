@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import { exigir } from "@/lib/sesion";
+import { sesionObligatoria } from "@/lib/sesion";
 import { db } from "@/lib/db";
 import { alertasDe } from "@/lib/alertas";
 import { INICIO, MENU, NOMBRE_ROL } from "@/lib/permisos";
@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false } };
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const s = await exigir();
+  const s = await sesionObligatoria();
   const [alertas, suc] = await Promise.all([
-    alertasDe(s),
+    s.cambiarPin ? Promise.resolve([]) : alertasDe(s),
     s.sucursalId ? db().from("sucursales").select("nombre").eq("id", s.sucursalId).single().then((r) => r.data?.nombre as string) : Promise.resolve("Toda la red"),
   ]);
   return (
@@ -48,7 +48,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <p className="w-full text-xs text-white/75 sm:hidden">{s.nombre} · {NOMBRE_ROL[s.rol]} · {suc} · <Link href="/cuenta" className="underline">Cambiar PIN</Link></p>
         </div>
       </header>
-      <NavPanel items={MENU[s.rol]} />
+      {!s.cambiarPin && <NavPanel items={MENU[s.rol]} />}
       <main id="contenido" className="mx-auto max-w-7xl px-4 py-6">{children}</main>
       <Inactividad minutos={MINUTOS_INACTIVIDAD} />
     </div>

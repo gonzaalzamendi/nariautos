@@ -21,7 +21,7 @@ export default async function Turno({ params }: { params: Promise<{ id: string }
   const v = t.vehiculos, n = t.clientes.nombre.split(" ")[0], cuando = `${fechaLarga(t.fecha)} a las ${hora(t.hora)} h`;
   const MENSAJES: Record<string, string> = {
     solicitado: `Hola ${n}, recibimos tu pedido de turno en NariAutos ${t.taller.nombre} para el ${cuando}. En breve te lo confirmamos. Código: ${t.codigo}.`,
-    confirmado: `Hola ${n}, tu turno en NariAutos ${t.taller.nombre} (${t.taller.direccion}) quedó confirmado para el ${cuando}. Vehículo patente ${v.patente}. Código de turno: ${t.codigo}.`,
+    confirmado: `Hola ${n}, tu turno en NariAutos ${t.taller.nombre} (${t.taller.direccion}) quedó confirmado para el ${cuando}. Vehículo patente ${v.patente}. Código de turno: ${t.codigo}. Código del vehículo para ver su historial: ${v.codigo_auto}.`,
     recibido: `Hola ${n}, recibimos tu vehículo patente ${v.patente} en el taller. Te avisamos cuando esté listo.`,
     en_reparacion: `Hola ${n}, ya estamos trabajando en tu vehículo patente ${v.patente}. Te avisamos apenas esté listo.`,
     listo: `Hola ${n}, tu vehículo patente ${v.patente} está listo para retirar en NariAutos ${t.taller.nombre} (${t.taller.direccion}), de lunes a viernes de 8 a 17 h.`,
@@ -42,6 +42,7 @@ export default async function Turno({ params }: { params: Promise<{ id: string }
             <dl className="grid grid-cols-2 gap-4">
               <Dato nombre="Cliente">{t.clientes.nombre}</Dato><Dato nombre="Teléfono"><span className="cifras">{t.clientes.telefono}</span></Dato>
               <Dato nombre="Vehículo">{v.marca} {v.modelo} {v.anio}</Dato><Dato nombre="Kilómetros"><span className="cifras">{numero(v.km_actual)} km</span></Dato>
+              <Dato nombre="Código del vehículo"><span className="cifras font-medium">{v.codigo_auto}</span></Dato>
               <Dato nombre="Origen">{t.origen.nombre} · {etiqueta(t.canal_origen)}</Dato><Dato nombre="Duración estimada"><span className="cifras">{t.duracion_min} min</span></Dato>
             </dl>
             {t.observaciones && <p className="mt-4 rounded-md bg-fondo px-3 py-2 text-sm">Observaciones: {t.observaciones}</p>}
@@ -96,6 +97,7 @@ export default async function Turno({ params }: { params: Promise<{ id: string }
         <div className="space-y-5">
           {MENSAJES[t.estado] && (
             <Tarjeta titulo="Avisar al cliente">
+              <p className="mb-2 text-xs text-medio">Se envía al contacto cargado: <span className="cifras">{t.clientes.telefono}</span>{t.clientes.email && ` · ${t.clientes.email}`}</p>
               <p className="mb-3 rounded-md bg-fondo px-3 py-2 text-sm">{MENSAJES[t.estado].replace("{SITIO}", "nuestra web")}</p>
               <BotonesAviso telefono={t.clientes.telefono} email={t.clientes.email} mensaje={MENSAJES[t.estado]} turno={t.id} />
             </Tarjeta>

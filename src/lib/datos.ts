@@ -24,10 +24,10 @@ export async function promocionesVigentes(sucursalId?: number): Promise<any[]> {
   return leer<any[]>(q);
 }
 
-/** Busca o crea el cliente por teléfono. */
+/** Busca o crea el cliente por teléfono y nombre (un mismo teléfono puede repetirse). */
 export async function obtenerCliente(nombre: string, telefono: string, email?: string): Promise<number> {
   const d = db();
-  const { data } = await d.from("clientes").select("id").eq("telefono", telefono).order("id").limit(1).maybeSingle();
+  const { data } = await d.from("clientes").select("id").eq("telefono", telefono).ilike("nombre", nombre.trim().replace(/[%_]/g, "")).order("id").limit(1).maybeSingle();
   if (data) { if (email) await d.from("clientes").update({ email }).eq("id", data.id); return data.id; }
   const nuevo = await leer<{ id: number }>(d.from("clientes").insert({ nombre, telefono, email: email ?? null }).select("id").single());
   return nuevo.id;
@@ -39,6 +39,13 @@ export async function franjasLibres(taller: number, fecha: string, servicioId: n
   const filas = await leer<any[]>(db().rpc("disponibilidad_taller", { p_taller: taller, p_fecha: fecha, p_duracion: srv.duracion_min }));
   const ahora = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
   return filas.filter((f) => fecha !== hoyAR() || f.hora.slice(0, 5) > ahora).map((f) => ({ hora: f.hora.slice(0, 5), libres: f.libres }));
+}
+
+/** Vehículos cuyo titular coincide con el nombre buscado. */
+export async function vehiculosDeCliente(texto: string): Promise<any[]> {
+  const t = texto.replace(/[%_,()]/g, "").trim();
+  if (t.length < 3) return [];
+  return leer<any[]>(db().from("vehiculos").select("patente, marca, modelo, anio, clientes!inner(nombre, telefono)").ilike("clientes.nombre", `%${t}%`).order("patente").limit(30));
 }
 
 export async function historialDePatente(patente: string) {

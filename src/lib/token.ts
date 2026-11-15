@@ -19,9 +19,9 @@ export async function leerToken(token: string | undefined): Promise<Sesion | nul
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, clave(), { algorithms: ["HS256"] });
-    const { id, nombre, rol, sucursalId } = payload as any;
+    const { id, nombre, rol, sucursalId, cambiarPin } = payload as any;
     if (typeof id !== "number" || typeof rol !== "string") return null;
-    return { id, nombre, rol: rol as Sesion["rol"], sucursalId: sucursalId ?? null };
+    return { id, nombre, rol: rol as Sesion["rol"], sucursalId: sucursalId ?? null, ...(cambiarPin ? { cambiarPin: true } : {}) };
   } catch { return null; }
 }
 export const opcionesCookie = {

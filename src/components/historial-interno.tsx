@@ -1,22 +1,32 @@
-import { historialDePatente } from "@/lib/datos";
+import Link from "next/link";
+import { historialDePatente, vehiculosDeCliente } from "@/lib/datos";
 import { normalizarPatente } from "@/lib/validaciones";
-import { Encabezado, Vacio, claseBoton, claseCampo } from "./ui";
+import { Encabezado, Tabla, Vacio, claseBoton, claseCampo } from "./ui";
 import { VistaHistorial } from "./historial";
 
-export async function HistorialInterno({ patente }: { patente?: string }) {
-  const p = normalizarPatente(patente);
-  const h = p ? await historialDePatente(p) : null;
+const esPatente = (t: string) => /^([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})$/.test(t);
+
+/** Historial para asesor y jefe de taller: se busca por patente o por nombre del cliente. */
+export async function HistorialInterno({ q, base }: { q?: string; base: string }) {
+  const texto = (q ?? "").trim(), p = normalizarPatente(texto);
+  const h = esPatente(p) ? await historialDePatente(p) : null;
+  const vehiculos = texto && !h ? await vehiculosDeCliente(texto) : [];
   return (
     <>
-      <Encabezado titulo="Historial por patente" texto="Services y trabajos realizados en cualquier taller de la red." />
-      <form className="mb-5 flex max-w-md items-end gap-2" role="search">
-        <div className="flex-1"><label htmlFor="patente" className="mb-1 block text-sm font-medium">Patente</label>
-          <input id="patente" name="patente" defaultValue={p} required placeholder="AB123CD" className={claseCampo + " uppercase"} /></div>
+      <Encabezado titulo="Historial de vehículos" texto="Services y trabajos realizados en cualquier taller de la red. Buscá por patente o por nombre del cliente." />
+      <form className="mb-5 flex max-w-lg items-end gap-2" role="search">
+        <div className="flex-1"><label htmlFor="q" className="mb-1 block text-sm font-medium">Patente o cliente</label>
+          <input id="q" name="q" defaultValue={texto} required placeholder="AB123CD o Castro" className={claseCampo} /></div>
         <button type="submit" className={claseBoton("secundario")}>Buscar historial</button>
       </form>
-      {!p ? <Vacio titulo="Ingresá una patente" texto="Por ejemplo AB123CD, uno de los vehículos de prueba." />
-        : !h ? <Vacio titulo={`No hay un vehículo registrado con la patente ${p}`} texto="Revisá que esté bien escrita. Los vehículos se registran al sacar su primer turno." />
-        : <><p className="mb-3 text-sm">Titular: <strong>{h.vehiculo.clientes?.nombre ?? "—"}</strong> · <span className="cifras">{h.vehiculo.clientes?.telefono}</span></p><VistaHistorial vehiculo={h.vehiculo} historial={h.historial} /></>}
+      {!texto ? <Vacio titulo="Ingresá una patente o un nombre" texto="Por ejemplo AB123CD, o «Castro» para ver los vehículos de ese cliente." />
+        : h ? <><p className="mb-3 text-sm">Titular: <strong>{h.vehiculo.clientes?.nombre ?? "—"}</strong> · <span className="cifras">{h.vehiculo.clientes?.telefono}</span> · código del vehículo <span className="cifras font-medium">{h.vehiculo.codigo_auto}</span></p><VistaHistorial vehiculo={h.vehiculo} historial={h.historial} /></>
+        : vehiculos.length > 0 ? (
+          <Tabla cabeceras={["Cliente", "Patente", "Vehículo", ""]}>
+            {vehiculos.map((v) => <tr key={v.patente}><td>{v.clientes.nombre}<br /><span className="cifras text-xs text-medio">{v.clientes.telefono}</span></td><td className="cifras font-medium">{v.patente}</td><td>{v.marca} {v.modelo} {v.anio}</td>
+              <td><Link href={`${base}?q=${v.patente}`} className={claseBoton("contorno", true)}>Ver historial</Link></td></tr>)}
+          </Tabla>
+        ) : <Vacio titulo={`No encontramos vehículos para «${texto}»`} texto="Revisá que la patente esté bien escrita o probá con el apellido del cliente. Los vehículos se registran al sacar su primer turno." />}
     </>
   );
 }

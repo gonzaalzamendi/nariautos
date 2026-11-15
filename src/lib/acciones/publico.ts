@@ -34,15 +34,16 @@ export async function pedirCotizacion(_: Estado, fd: FormData): Promise<Estado> 
 export async function agendarTestDrive(_: Estado, fd: FormData): Promise<Estado> {
   const freno = await protegerFormulario(fd, "test_drive");
   if (freno === "spam") return SPAM_OK; if (freno) return freno;
-  const p = zContacto.extend({ unidad: zId, fecha: zFecha, franja: z.enum(["manana", "mediodia", "tarde"]) }).safeParse(objeto(fd));
+  const p = zContacto.extend({ unidad: zId, fecha: zFecha, hora: zHora }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
+  if (p.data.hora < "09:00" || p.data.hora > "18:00") return { error: "Elegí un horario entre las 9 y las 18 h, que es cuando atiende el salón." };
   if (p.data.fecha <= hoyAR()) return { error: "Elegí una fecha a partir de mañana para el test drive." };
   const u = await unidadPublicada(p.data.unidad);
   if (!u) return { error: "Esta unidad ya no está publicada. Volvé al catálogo para ver las disponibles." };
   const cliente = await obtenerCliente(p.data.nombre, p.data.telefono, p.data.email);
   const { data: c, error } = await db().from("consultas").insert({ tipo: "test_drive", canal: "web", sucursal_id: u.sucursal_id, unidad_id: u.id, cliente_id: cliente, mensaje: "Solicitud de test drive desde la web." }).select("id").single();
   if (error) return { error: mensajeError(error) };
-  await db().from("test_drives").insert({ consulta_id: c.id, unidad_id: u.id, fecha: p.data.fecha, franja: p.data.franja });
+  await db().from("test_drives").insert({ consulta_id: c.id, unidad_id: u.id, fecha: p.data.fecha, hora: p.data.hora });
   revalidatePath("/", "layout");
   return { ok: true, mensaje: "Test drive solicitado. Queda pendiente de confirmación: el vendedor te va a avisar por teléfono o WhatsApp." };
 }
@@ -66,8 +67,9 @@ export async function reservarTurnoWeb(datos: Record<string, unknown>): Promise<
     p_nombre: t.nombre, p_telefono: t.telefono, p_email: t.email ?? null, p_observaciones: t.observaciones ?? null, p_empleado: null,
   });
   if (error) return { error: mensajeError(error) };
+  const { data: veh } = await db().from("vehiculos").select("codigo_auto").eq("id", data.vehiculo_id).single();
   revalidatePath("/", "layout");
-  return { ok: true, datos: { codigo: data.codigo, fecha: data.fecha, hora: data.hora, derivado: data.derivado, patente: t.patente } };
+  return { ok: true, datos: { codigo: data.codigo, fecha: data.fecha, hora: data.hora, derivado: data.derivado, patente: t.patente, codigoAuto: veh?.codigo_auto } };
 }
 
 const zSeguir = z.object({ patente: zPatente, codigo: z.preprocess((v) => String(v ?? "").toUpperCase().trim(), z.string().min(4, "Ingresá el código de turno que recibiste al reservar.").max(10)) });
@@ -75,7 +77,7 @@ const faltanMasDe24h = (fecha: string, hora: string) => new Date(`${fecha}T${hor
 
 async function turnoDeCliente(patente: string, codigo: string) {
   const { data } = await db().from("turnos")
-    .select("*, vehiculos!inner(patente, marca, modelo), servicios(nombre, duracion_min), taller:sucursales!turnos_sucursal_taller_id_fkey(nombre, direccion, localidad, telefono), origen:sucursales!turnos_sucursal_origen_id_fkey(nombre), clientes(nombre), eventos_turno(estado, detalle, creado_en), encuestas(id)")
+    .select("*, vehiculos!inner(patente, marca, modelo, codigo_auto), servicios(nombre, duracion_min), taller:sucursales!turnos_sucursal_taller_id_fkey(nombre, direccion, localidad, telefono), origen:sucursales!turnos_sucursal_origen_id_fkey(nombre), clientes(nombre), eventos_turno(estado, detalle, creado_en), encuestas(id)")
     .eq("codigo", codigo).eq("vehiculos.patente", patente).maybeSingle();
   return data as any;
 }
@@ -88,7 +90,7 @@ export async function buscarTurno(_: Estado, fd: FormData): Promise<Estado> {
   const t = await turnoDeCliente(p.data.patente, p.data.codigo);
   if (!t) return { error: "No encontramos un turno con esa patente y ese código. Revisá los dos datos; el código figura en la confirmación del turno." };
   return { ok: true, datos: {
-    codigo: t.codigo, patente: t.vehiculos.patente, vehiculo: `${t.vehiculos.marca} ${t.vehiculos.modelo}`, servicio: t.servicios.nombre, servicioId: t.servicio_id,
+    codigo: t.codigo, patente: t.vehiculos.patente, codigoAuto: t.vehiculos.codigo_auto, vehiculo: `${t.vehiculos.marca} ${t.vehiculos.modelo}`, servicio: t.servicios.nombre, servicioId: t.servicio_id,
     estado: t.estado, fecha: t.fecha, hora: t.hora, tallerId: t.sucursal_taller_id, taller: t.taller, origen: t.origen?.nombre, derivado: t.derivado, cliente: t.clientes.nombre.split(" ")[0],
     eventos: [...t.eventos_turno].sort((a: any, b: any) => a.creado_en.localeCompare(b.creado_en)),
     modificable: ["solicitado", "confirmado"].includes(t.estado) && faltanMasDe24h(t.fecha, t.hora),
@@ -126,18 +128,22 @@ export async function reprogramarTurnoCliente(_: Estado, fd: FormData): Promise<
 }
 
 export async function buscarHistorial(_: Estado, fd: FormData): Promise<Estado> {
-  const freno = await protegerFormulario(fd, "historial", 20);
+  const freno = await protegerFormulario(fd, "historial", 15);
   if (freno === "spam") return {}; if (freno) return freno;
-  const p = z.object({ patente: zPatente, verificador: z.string().trim().min(4, "Ingresá tu código de turno o el teléfono con el que te registraste.").max(20) }).safeParse(objeto(fd));
+  const p = z.object({ patente: zPatente, codigo_auto: z.preprocess((v) => String(v ?? "").toUpperCase().replace(/[^A-Z0-9]/g, ""), z.string().regex(/^[A-Z]{2}\d{2}$/, "El código del vehículo tiene 2 letras y 2 números, por ejemplo TC18. Figura en la confirmación de tu turno.")) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
-  const noCoincide = { error: "No encontramos un vehículo con esa patente y ese código o teléfono. Revisá los datos e intentá de nuevo." };
   const h = await historialDePatente(p.data.patente);
-  if (!h) return noCoincide;
-  const tel = p.data.verificador.replace(/\D/g, "");
-  let ok = tel.length >= 8 && h.vehiculo.clientes?.telefono === tel;
-  if (!ok) ok = !!(await db().from("turnos").select("id").eq("vehiculo_id", h.vehiculo.id).eq("codigo", p.data.verificador.toUpperCase()).maybeSingle()).data;
-  if (!ok) return noCoincide;
+  // Única llave válida: patente + código del vehículo (no sirve el código de turno ni el teléfono)
+  if (!h || h.vehiculo.codigo_auto !== p.data.codigo_auto) return { error: "No encontramos un vehículo con esa patente y ese código. Revisá los dos datos; el código figura en la confirmación de tu turno o te lo da el asesor del taller." };
   return { ok: true, datos: { vehiculo: { patente: h.vehiculo.patente, marca: h.vehiculo.marca, modelo: h.vehiculo.modelo, anio: h.vehiculo.anio, km_actual: h.vehiculo.km_actual }, historial: h.historial } };
+}
+
+/** Datos no personales de una patente ya registrada, para autocompletar y evitar cargas inconsistentes. */
+export async function datosDePatente(patente: string): Promise<{ marca: string; modelo: string; anio: number } | null> {
+  const p = zPatente.safeParse(patente);
+  if (!p.success || (await protegerFormulario(null, "patente", 40))) return null;
+  const { data } = await db().from("vehiculos").select("marca, modelo, anio").eq("patente", p.data).maybeSingle();
+  return data ?? null;
 }
 
 export async function solicitarTasacion(_: Estado, fd: FormData): Promise<Estado> {

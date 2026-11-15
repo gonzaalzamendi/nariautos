@@ -12,14 +12,15 @@ const PIN = { type: "password", inputMode: "numeric" as const, pattern: "\\d{4}"
 export default async function Empleados() {
   const s = await exigir("gerencia");
   const [es, sucs, mecs] = await Promise.all([
-    leer<any[]>(db().from("empleados").select("id, nombre, rol, sucursal_id, activo, bloqueado_hasta, sucursales(nombre)").order("activo", { ascending: false }).order("nombre")),
+    leer<any[]>(db().from("empleados").select("id, nombre, usuario, rol, sucursal_id, activo, bloqueado_hasta, pin_cambiado_en, sucursales(nombre)").order("activo", { ascending: false }).order("nombre")),
     leer<any[]>(db().from("sucursales").select("id, nombre").order("id")),
     leer<any[]>(db().from("mecanicos").select("*, sucursales(nombre)").order("sucursal_id").order("nombre")),
   ]);
   const opSuc = sucs.map((x) => [x.id, x.nombre] as const);
   const Form = ({ e }: { e?: any }) => (
-    <FormAccion accion={guardarEmpleado} ocultos={{ id: e?.id }} limpiar={!e} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <FormAccion accion={guardarEmpleado} ocultos={{ id: e?.id }} limpiar={!e} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
       <Entrada etiqueta="Nombre y apellido" name="nombre" id={`n-${e?.id ?? 0}`} required defaultValue={e?.nombre} autoComplete="off" />
+      <Entrada etiqueta="Usuario" name="usuario" id={`u-${e?.id ?? 0}`} required defaultValue={e?.usuario} autoComplete="off" autoCapitalize="none" placeholder="nombre.apellido" />
       <Selector etiqueta="Rol" name="rol" id={`r-${e?.id ?? 0}`} required defaultValue={e?.rol ?? "vendedor"} opciones={ROLES} />
       <Selector etiqueta="Sucursal" name="sucursal" id={`s-${e?.id ?? 0}`} defaultValue={e?.sucursal_id ?? ""} vacio="Toda la red (solo gerencia)" opciones={opSuc} />
       {!e && <Entrada etiqueta="PIN inicial (4 dígitos)" name="pin" id="pin-nuevo" required {...PIN} />}
@@ -28,13 +29,13 @@ export default async function Empleados() {
   );
   return (
     <>
-      <Encabezado titulo="Empleados" texto="Alta, roles, sucursal y PIN de acceso. El PIN se guarda cifrado: nadie puede verlo, solo reemplazarlo."><BotonLink href="/api/csv/empleados" variante="contorno" download>Exportar a CSV</BotonLink></Encabezado>
+      <Encabezado titulo="Empleados" texto="Alta, usuario, rol, sucursal y PIN. El PIN se guarda cifrado y vence cada 3 meses (salvo Gerencia)."><BotonLink href="/api/csv/empleados" variante="contorno" download>Exportar a CSV</BotonLink></Encabezado>
       <Tarjeta titulo="Nuevo empleado" className="mb-5"><Form /></Tarjeta>
       <Tabla cabeceras={["Empleado", "Rol", "Sucursal", "Estado", "Acciones"]}>
         {es.map((e) => { const bloq = e.bloqueado_hasta && new Date(e.bloqueado_hasta) > new Date(); return (
           <tr key={e.id}>
-            <td className="font-medium">{e.nombre}</td><td>{etiqueta(e.rol)}</td><td>{e.sucursales?.nombre ?? "Toda la red"}</td>
-            <td><Insignia tono={e.activo ? "exito" : "neutro"}>{e.activo ? "Activo" : "Inactivo"}</Insignia>{bloq && <><br /><span className="cifras text-xs text-error">Bloqueado hasta {fechaHora(e.bloqueado_hasta).slice(-5)} h</span></>}</td>
+            <td className="font-medium">{e.nombre}<br /><span className="cifras text-xs font-normal text-medio">{e.usuario}</span></td><td>{etiqueta(e.rol)}</td><td>{e.sucursales?.nombre ?? "Toda la red"}</td>
+            <td><Insignia tono={e.activo ? "exito" : "neutro"}>{e.activo ? "Activo" : "Inactivo"}</Insignia>{bloq && <><br /><span className="cifras text-xs text-error">Bloqueado hasta {fechaHora(e.bloqueado_hasta).slice(-5)} h</span></>}{e.rol !== "gerencia" && Date.now() - new Date(e.pin_cambiado_en).getTime() > 91 * 864e5 && <><br /><span className="text-xs text-alerta-texto">PIN vencido: debe cambiarlo al ingresar</span></>}</td>
             <td className="min-w-72">
               <details><summary className="inline-flex min-h-9 cursor-pointer items-center text-sm font-medium text-acero">Editar datos y PIN</summary>
                 <div className="mt-2 space-y-4 rounded-md border border-borde p-3">

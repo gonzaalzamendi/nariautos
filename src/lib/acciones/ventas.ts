@@ -6,7 +6,7 @@ import { db, mensajeError } from "@/lib/db";
 import { auditar, exigir, exigirSucursal } from "@/lib/sesion";
 import { obtenerCliente } from "@/lib/datos";
 import { hoyAR } from "@/lib/formato";
-import { objeto, primerError, zContacto, zFecha, zId, zOpcional, zTurno, zUnidad } from "@/lib/validaciones";
+import { normalizarPatente, objeto, primerError, zContacto, zFecha, zHora, zId, zOpcional, zTurno, zUnidad } from "@/lib/validaciones";
 import type { Estado, Sesion } from "@/lib/tipos";
 
 const listo = (mensaje: string, datos?: any): Estado => { revalidatePath("/", "layout"); return { ok: true, mensaje, datos }; };
@@ -26,7 +26,7 @@ async function unidadOperable(s: Sesion, id: number) {
 // ---------- Consultas ----------
 export async function crearConsultaManual(_: Estado, fd: FormData): Promise<Estado> {
   const s = await exigirSucursal("vendedor");
-  const p = zContacto.extend({ tipo: z.enum(["cotizacion", "test_drive", "general"]), canal: z.enum(["telefono", "whatsapp", "redes", "presencial"]), unidad: idOpcional, mensaje: zOpcional(600) }).safeParse(objeto(fd));
+  const p = zContacto.extend({ tipo: z.enum(["cotizacion", "general"]), canal: z.enum(["telefono", "whatsapp", "presencial"]), unidad: idOpcional, mensaje: zOpcional(600) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const cliente = await obtenerCliente(p.data.nombre, p.data.telefono, p.data.email);
   const { data, error } = await db().from("consultas").insert({
@@ -89,16 +89,16 @@ export async function cerrarConsulta(_: Estado, fd: FormData): Promise<Estado> {
 
 export async function gestionarTestDrive(_: Estado, fd: FormData): Promise<Estado> {
   const s = await exigirSucursal("vendedor");
-  const p = z.object({ test: zId, accion: z.enum(["confirmar", "reprogramar", "realizado", "cancelar"]), fecha: z.preprocess((v) => v || undefined, zFecha.optional()), franja: z.preprocess((v) => v || undefined, z.enum(["manana", "mediodia", "tarde"]).optional()) }).safeParse(objeto(fd));
+  const p = z.object({ test: zId, accion: z.enum(["confirmar", "reprogramar", "realizado", "cancelar"]), fecha: z.preprocess((v) => v || undefined, zFecha.optional()), hora: z.preprocess((v) => v || undefined, zHora.optional()) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const { data: td } = await db().from("test_drives").select("*").eq("id", p.data.test).maybeSingle();
   const c = td ? await consultaPropia(s, td.consulta_id) : null;
   if (!td || !c) return AJENA;
   const cambio: Record<string, unknown> = {};
   if (p.data.accion === "reprogramar") {
-    if (!p.data.fecha || !p.data.franja) return { error: "Elegí la nueva fecha y la franja horaria." };
+    if (!p.data.fecha || !p.data.hora) return { error: "Elegí la nueva fecha y el horario." };
     if (p.data.fecha < hoyAR()) return { error: "La nueva fecha no puede ser anterior a hoy." };
-    Object.assign(cambio, { fecha: p.data.fecha, franja: p.data.franja, estado: "confirmado" });
+    Object.assign(cambio, { fecha: p.data.fecha, hora: p.data.hora, estado: "confirmado" });
   } else cambio.estado = { confirmar: "confirmado", realizado: "realizado", cancelar: "cancelado" }[p.data.accion];
   await db().from("test_drives").update(cambio).eq("id", td.id);
   const ahora = new Date().toISOString();
@@ -235,7 +235,7 @@ export async function resolverTransferencia(_: Estado, fd: FormData): Promise<Es
 
 // ---------- Promociones y tasaciones ----------
 export async function guardarPromocion(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigir("vendedor", "gerencia");
+  const s = await exigir("gerencia"); // los vendedores solo ven las promociones vigentes
   const p = z.object({ id: idOpcional, sucursal: idOpcional, titulo: z.string().trim().min(5, "Escribí un título de al menos 5 caracteres.").max(90), descripcion: z.string().trim().min(10, "Describí la promoción en al menos 10 caracteres.").max(500), vigente_desde: zFecha, vigente_hasta: zFecha }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   if (p.data.vigente_hasta < p.data.vigente_desde) return { error: "La fecha de fin tiene que ser igual o posterior a la de inicio." };
@@ -267,7 +267,7 @@ export async function guardarPromocion(_: Estado, fd: FormData): Promise<Estado>
 }
 
 export async function alternarPromocion(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigir("vendedor", "gerencia");
+  const s = await exigir("gerencia");
   const p = z.object({ promocion: zId }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const { data: pr } = await db().from("promociones").select("id, activa, sucursal_id").eq("id", p.data.promocion).maybeSingle();
@@ -289,19 +289,51 @@ export async function responderTasacion(_: Estado, fd: FormData): Promise<Estado
   return listo("Valor estimado guardado. Avisale al cliente por WhatsApp o email.");
 }
 
-// ---------- Derivación a taller (vendedor y asesor) ----------
+// ---------- Test drives cargados por el vendedor ----------
+export async function crearTestDrive(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigirSucursal("vendedor");
+  const p = zContacto.extend({ unidad: zId, fecha: zFecha, hora: zHora }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  if (p.data.fecha < hoyAR()) return { error: "La fecha del test drive no puede ser anterior a hoy." };
+  const u = await unidadOperable(s, p.data.unidad);
+  if (!u || u.estado === "vendida") return { error: "Elegí una unidad disponible de tu sucursal." };
+  const cliente = await obtenerCliente(p.data.nombre, p.data.telefono, p.data.email);
+  const ahora = new Date().toISOString();
+  const { data: c, error } = await db().from("consultas").insert({ tipo: "test_drive", canal: "presencial", estado: "test_drive_agendado", sucursal_id: s.sucursalId, vendedor_id: s.id, unidad_id: u.id, cliente_id: cliente, mensaje: "Test drive agendado por el vendedor.", primera_respuesta_en: ahora }).select("id").single();
+  if (error) return { error: mensajeError(error) };
+  await db().from("test_drives").insert({ consulta_id: c.id, unidad_id: u.id, fecha: p.data.fecha, hora: p.data.hora, estado: "confirmado" });
+  await auditar(s, "Test drive agendado", "test_drives", c.id, { unidad: u.id, fecha: p.data.fecha, hora: p.data.hora });
+  return listo("Test drive agendado y confirmado.");
+}
+
+// ---------- Autocompletar con datos ya registrados (solo empleados) ----------
+export async function buscarRegistrados(q: { patente?: string; texto?: string }): Promise<{ vehiculo?: any; clientes: any[] }> {
+  await exigir("vendedor", "asesor");
+  const d = db();
+  if (q.patente) {
+    const { data: v } = await d.from("vehiculos").select("patente, marca, modelo, anio, km_actual, clientes(nombre, telefono, email)").eq("patente", normalizarPatente(q.patente)).maybeSingle();
+    return v ? { vehiculo: v, clientes: [] } : { clientes: [] };
+  }
+  const t = (q.texto ?? "").replace(/[%_,()]/g, "").trim();
+  if (t.length < 3) return { clientes: [] };
+  const { data } = await d.from("clientes").select("id, nombre, telefono, email").ilike("nombre", `%${t}%`).order("nombre").limit(6);
+  return { clientes: data ?? [] };
+}
+
+// ---------- Turnos cargados por el asesor (con sucursal de origen) ----------
 export async function derivarTurno(datos: Record<string, unknown>): Promise<Estado> {
-  const s = await exigirSucursal("vendedor", "asesor");
-  const p = zTurno.extend({ canal: z.enum(["presencial", "telefono", "whatsapp", "redes"]) }).safeParse({ ...datos, origen: s.sucursalId });
+  const s = await exigirSucursal("asesor");
+  const p = zTurno.extend({ canal: z.enum(["presencial", "telefono", "whatsapp"]) }).safeParse({ ...datos, taller: s.sucursalId });
   if (!p.success) return { error: primerError(p.error) };
   const t = p.data;
   const { data, error } = await db().rpc("reservar_turno", {
-    p_servicio: t.servicio, p_taller: t.taller, p_origen: s.sucursalId, p_canal: t.canal, p_fecha: t.fecha, p_hora: t.hora,
+    p_servicio: t.servicio, p_taller: s.sucursalId, p_origen: t.origen, p_canal: t.canal, p_fecha: t.fecha, p_hora: t.hora,
     p_patente: t.patente, p_marca: t.marca, p_modelo: t.modelo, p_anio: t.anio, p_km: t.km,
     p_nombre: t.nombre, p_telefono: t.telefono, p_email: t.email ?? null, p_observaciones: t.observaciones ?? null, p_empleado: s.id,
   });
   if (error) return { error: mensajeError(error) };
-  await auditar(s, data.derivado ? "Turno derivado a taller" : "Turno cargado", "turnos", data.id, { codigo: data.codigo, taller: t.taller });
+  const { data: veh } = await db().from("vehiculos").select("codigo_auto").eq("id", data.vehiculo_id).single();
+  await auditar(s, data.derivado ? "Turno derivado cargado" : "Turno cargado", "turnos", data.id, { codigo: data.codigo, origen: t.origen });
   revalidatePath("/", "layout");
-  return { ok: true, datos: { codigo: data.codigo, fecha: data.fecha, hora: data.hora, derivado: data.derivado, patente: t.patente } };
+  return { ok: true, datos: { id: data.id, codigo: data.codigo, fecha: data.fecha, hora: data.hora, derivado: data.derivado, patente: t.patente, codigoAuto: veh?.codigo_auto, nombre: t.nombre, telefono: t.telefono, email: t.email ?? null } };
 }
