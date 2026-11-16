@@ -90,7 +90,6 @@ Otros comandos: `npm run build`, `npm run lint`, `npm test` (las pruebas corren 
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | navegador y servidor | URL del proyecto de Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | navegador y servidor | Clave pública (publishable) |
-| `NEXT_PUBLIC_DIFY_CHAT_URL` | navegador | URL del chatbot de Dify (`https://udify.app/chatbot/<token>`). Si falta, no se muestra el botón «Consulta a Nari» |
 | `SUPABASE_SERVER_SECRET` | **solo servidor** | Secreto con el que el servidor se identifica ante la base |
 | `SESSION_SECRET` | **solo servidor** | Secreto para firmar las cookies de sesión |
 
