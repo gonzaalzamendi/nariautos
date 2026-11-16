@@ -2,7 +2,7 @@
 truncate sucursales, empleados, mecanicos, clientes, vehiculos, unidades, fotos_unidad, promociones, promocion_unidad,
   consultas, seguimientos_consulta, test_drives, servicios, turnos, eventos_turno, ordenes_trabajo, asignaciones,
   historial_service, notificaciones, encuestas, tasaciones, reservas_unidad, transferencias_unidad, auditoria,
-  intentos_acceso, solicitudes_publicas, repuestos, repuestos_orden restart identity cascade;
+  intentos_acceso, solicitudes_publicas, repuestos, repuestos_orden, preguntas_frecuentes restart identity cascade;
 
 -- n-ésimo día hábil respecto de hoy (0 = hoy o el próximo lunes si es fin de semana)
 create or replace function pg_temp.habil(n int) returns date language plpgsql as $$
@@ -290,5 +290,15 @@ select s, c, n, case when s = 1 then st else greatest(st - 3, 0) end, mi, pr fro
  ('DF-3002','Disco de freno delantero',3,4,92000),('BJ-4001','Bujía de iridio',22,8,11800),('BT-5001','Batería 12V 65Ah',2,3,168000),
  ('LF-6001','Líquido de frenos DOT4 (500 ml)',10,4,9800),('GA-7001','Gas refrigerante R134a (lata)',5,3,21500)
 ) r(c, n, st, mi, pr);
+
+-- Preguntas frecuentes (las lee el chatbot mediante chatbot_contexto())
+insert into preguntas_frecuentes (orden, pregunta, respuesta) values
+ (1, '¿Cómo pido una cotización?', 'Entrá al Catálogo, abrí la ficha de la unidad que te interesa y completá el formulario «Pedir cotización» con tu nombre y teléfono (el email es opcional). No hace falta registrarse. Podés adjuntar la simulación de financiación que armes en la misma ficha. Un vendedor de la sucursal donde está la unidad te contacta dentro de las 24 horas hábiles con el precio, la bonificación y las opciones de financiación.'),
+ (2, '¿Cómo taso mi usado?', 'En el menú elegí «Tasá tu usado». Cargá marca, modelo, año, kilómetros y estado general de tu vehículo, sumá hasta 3 fotos si querés y elegí la sucursal donde preferís que lo vean. Un vendedor te responde con un valor estimado dentro de las 24 horas hábiles. El valor final se confirma con una revisión presencial y podés entregar el usado como parte de pago de cualquier unidad.'),
+ (3, '¿Cómo saco un turno de taller?', 'Tocá «Sacar turno» en la web y seguí 4 pasos: 1) elegí el servicio (si no está en la lista, elegí «Otro servicio» y describí el problema); 2) elegí tu sucursal más cercana; 3) elegí día y horario entre los disponibles (el taller atiende de lunes a viernes de 8 a 17 h); 4) cargá los datos del vehículo y de contacto. Al confirmar recibís un código de turno y un código del vehículo: guardalos. No hace falta registrarse ni tener contraseña.'),
+ (4, '¿Cómo agendo un test drive?', 'Abrí la ficha de la unidad en el Catálogo, elegí la pestaña «Agendar test drive», indicá el día y el horario que preferís (entre las 9 y las 18 h) y dejá tu nombre y teléfono. El pedido queda pendiente hasta que el vendedor de esa sucursal lo confirme por teléfono o WhatsApp; si hace falta, te propone otro horario.'),
+ (5, '¿Cómo sigo mi turno?', 'En «Seguir mi turno» ingresá la patente y el código de turno que recibiste al reservar. Vas a ver en qué etapa está tu vehículo: Solicitado, Confirmado, Recibido, En reparación, Listo para retirar o Entregado. Desde ahí también podés reprogramar o cancelar el turno hasta 24 horas antes. Para ver el historial de services usá «Historial del vehículo» con la patente y el código del vehículo (2 letras y 2 números).'),
+ (6, '¿Qué medios de pago y financiación aceptan?', 'Aceptamos transferencia bancaria, efectivo y tarjetas, y tomamos tu usado como parte de pago. También ofrecemos financiación: en la ficha de cada unidad hay un simulador para elegir el anticipo (del 20% al 80%) y la cantidad de cuotas (12 a 60). Los valores del simulador son orientativos; las condiciones definitivas las confirma el vendedor en la cotización y dependen de la aprobación crediticia. Consultá también las promociones vigentes, que pueden incluir cuotas sin interés.'),
+ (7, '¿Qué pasa si mi sucursal no tiene taller?', 'Casa Central (Tandil) y Sucursal 2 (Azul) tienen taller propio. Sucursal 3 y Sucursal 4 no tienen taller: si elegís una de ellas al sacar el turno, el sistema te avisa y deriva el turno al taller de referencia más cercano (Sucursal 3 deriva a Casa Central, a 4,2 km; Sucursal 4 deriva a Sucursal 2, a 6,5 km). Podés elegir el otro taller de la red si te queda más cómodo. El turno queda registrado con tu sucursal de origen.');
 
 select mantenimiento();

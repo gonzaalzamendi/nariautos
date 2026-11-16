@@ -105,7 +105,7 @@ Otros comandos: `npm run build`, `npm run lint`, `npm test` (las pruebas corren 
 
 ## Seguridad
 
-- **RLS en las 28 tablas.** El rol anónimo solo puede leer catálogo (unidades no vendidas), fotos, promociones vigentes, sucursales y servicios. No puede escribir nada.
+- **RLS en las 29 tablas.** El rol anónimo solo puede leer catálogo (unidades no vendidas), fotos, promociones vigentes, sucursales y servicios. No puede escribir nada.
 - **Acceso del servidor.** En lugar de la `service_role key`, el servidor envía un secreto propio en la cabecera `x-nari-server`; las políticas RLS comparan su hash SHA-256 con el guardado en `private.config`. Cumple la misma función (una credencial que vive solo en el servidor) y se puede rotar sin tocar las claves del proyecto. Las funciones de negocio son `SECURITY INVOKER`, así que para cualquier otro llamador rigen las políticas RLS.
 - **Acceso con usuario y PIN.** El PIN se guarda hasheado con bcrypt (`pgcrypto`) y se verifica solo en la base. Bloqueo de 5 minutos tras 5 intentos fallidos; cada intento queda en `intentos_acceso`. El mensaje de error no revela si el usuario existe.
 - **Vencimiento del PIN:** cada 3 meses, salvo Gerencia. Con el PIN vencido la sesión solo permite entrar a «Cambiar mi PIN»; el middleware y las acciones del servidor bloquean todo lo demás.
@@ -125,6 +125,16 @@ Otros comandos: `npm run build`, `npm run lint`, `npm test` (las pruebas corren 
   ```
   Restaurar con `pg_restore -d "<cadena>" nariautos.dump`. También `supabase db dump -f respaldo.sql` con la CLI.
 - **Por tabla:** Gerencia puede exportar a CSV unidades, consultas, turnos, empleados y auditoría desde el sistema.
+
+## Datos para el chatbot
+
+El chatbot (fuera de este repositorio) lee la información pública en tiempo real con una sola llamada:
+
+```bash
+curl -X POST "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/rpc/chatbot_contexto" -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" -H "Content-Type: application/json" -d '{}'
+```
+
+Devuelve un único JSON con `unidades` disponibles (precio y sucursal), `sucursales` (horarios, taller y a qué taller derivan), `servicios_taller`, `promociones` vigentes y `preguntas_frecuentes` activas. La función es `SECURITY INVOKER` y elige las columnas una por una: no incluye clientes, empleados, ventas ni costos. Las preguntas frecuentes están en la tabla `preguntas_frecuentes` (`pregunta`, `respuesta`, `activa`).
 
 ## Sucursales con y sin taller
 

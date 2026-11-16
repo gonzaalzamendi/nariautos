@@ -168,6 +168,16 @@ export type Database = {
           cerrada_en: string | null;
         };
       };
+      preguntas_frecuentes: {
+        Row: {
+          id: number;
+          pregunta: string;
+          respuesta: string;
+          activa: boolean;
+          orden: number;
+          creado_en: string;
+        };
+      };
       promocion_unidad: {
         Row: {
           promocion_id: number;
