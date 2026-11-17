@@ -43,3 +43,6 @@ a { text-underline-offset: 3px; }
   .nari-pulso { animation: none !important; opacity: 0; }
   .nari-flote { animation: none !important; }
 }
+
+/* Portada: entrada suave de cada mensaje del carrusel */
+@keyframes nari-entrada { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
