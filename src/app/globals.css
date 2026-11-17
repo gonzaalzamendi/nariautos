@@ -33,3 +33,13 @@ a { text-underline-offset: 3px; }
   html, body { background: #fff; }
   main { padding: 0 !important; }
 }
+
+/* Botón flotante del chatbot: anillo dorado que se agranda y se desvanece cada 2 s, y un leve flote vertical */
+@keyframes nari-pulso { 0% { transform: scale(1); opacity: 0.7; } 75%, 100% { transform: scale(1.6); opacity: 0; } }
+@keyframes nari-flote { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.nari-pulso { animation: nari-pulso 2s ease-out infinite; }
+.nari-flote { animation: nari-flote 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .nari-pulso { animation: none !important; opacity: 0; }
+  .nari-flote { animation: none !important; }
+}

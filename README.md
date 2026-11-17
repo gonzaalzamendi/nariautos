@@ -93,6 +93,7 @@ Otros comandos: `npm run build`, `npm run lint`, `npm test` (las pruebas corren 
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | navegador y servidor | Clave pública (publishable) |
 | `SUPABASE_SERVER_SECRET` | **solo servidor** | Secreto con el que el servidor se identifica ante la base |
 | `SESSION_SECRET` | **solo servidor** | Secreto para firmar las cookies de sesión |
+| `NEXT_PUBLIC_DIFY_CHAT_URL` | navegador | URL pública del chatbot de Dify (opcional) |
 
 ### Base de datos desde cero
 
@@ -126,6 +127,10 @@ Otros comandos: `npm run build`, `npm run lint`, `npm test` (las pruebas corren 
   ```
   Restaurar con `pg_restore -d "<cadena>" nariautos.dump`. También `supabase db dump -f respaldo.sql` con la CLI.
 - **Por tabla:** Gerencia puede exportar a CSV unidades, consultas, turnos, empleados y auditoría desde el sistema.
+
+## Chatbot «Consulta a Nari»
+
+En todas las páginas de la web pública hay un botón flotante que abre el chatbot de Dify en una ventana (400 × 600 px en escritorio, pantalla completa en celular). Se configura con `NEXT_PUBLIC_DIFY_CHAT_URL`, la URL pública que da Dify en *Publicar → Incrustar en sitios web*; si la variable está vacía, el botón no aparece. El navegador nunca usa la API key de Dify. No se muestra en `/acceso` ni en los paneles de empleados.
 
 ## Datos para el chatbot
 

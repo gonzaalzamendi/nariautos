@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui";
+import { ChatNari } from "@/components/chat-nari";
 
 const NAV = [
   ["/catalogo", "Catálogo"], ["/promociones", "Promociones"], ["/turnos", "Sacar turno de taller"], ["/turnos/seguir", "Seguir mi turno"],
@@ -33,6 +34,7 @@ export default function PublicoLayout({ children }: { children: React.ReactNode 
         </div>
         <p className="border-t border-white/10 px-4 py-3 text-center text-xs text-white/55">NariAutos · Prototipo académico · Sistemas de Información Gerencial · FCE – UNICEN</p>
       </footer>
+      <ChatNari />
     </div>
   );
 }
