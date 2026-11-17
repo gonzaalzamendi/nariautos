@@ -12,7 +12,7 @@ export default async function Tasacion({ searchParams }: { searchParams: Promise
   const u = unidad && /^\d+$/.test(unidad) ? (await db().from("unidades").select("id, marca, modelo, version, sucursal_id").eq("id", Number(unidad)).neq("estado", "vendida").maybeSingle()).data : null;
   return (
     <div className="mx-auto max-w-2xl">
-      <Encabezado titulo="Tasá tu usado" texto="Contanos cómo es tu vehículo y sumá hasta 3 fotos. Un vendedor te responde con un valor estimado para entregarlo como parte de pago." />
+      <Encabezado titulo="Tasá tu usado" texto="Contanos cómo es tu vehículo y subí 5 fotos: frente, costados, atrás e interior. Un vendedor te responde con un valor estimado para entregarlo como parte de pago." />
       <FormTasacion sucursales={sucs.map((s) => [s.id, `${s.nombre} · ${s.localidad}`] as const)} unidad={u} />
     </div>
   );

@@ -2,7 +2,7 @@
 import { solicitarTasacion } from "@/lib/acciones/publico";
 import { AreaTexto, Entrada, Selector } from "@/components/ui";
 import { BotonEnviar, FormAccion } from "@/components/formularios";
-import { SelectorFotos } from "@/components/fotos";
+import { FotosTasacion } from "@/components/fotos-tasacion";
 
 export function FormTasacion({ sucursales, unidad }: { sucursales: (readonly [number, string])[]; unidad: any }) {
   return (
@@ -15,7 +15,7 @@ export function FormTasacion({ sucursales, unidad }: { sucursales: (readonly [nu
         <Selector etiqueta="Estado general" name="estado_general" required opciones={[["excelente", "Excelente"], ["muy_bueno", "Muy bueno"], ["bueno", "Bueno"], ["regular", "Regular"]]} defaultValue="muy_bueno" />
         <Selector etiqueta="Sucursal donde querés que lo vean" name="sucursal" required opciones={sucursales} defaultValue={unidad?.sucursal_id} />
         <AreaTexto etiqueta="Comentarios (opcional)" name="comentarios" maxLength={600} placeholder="Dueños anteriores, services, detalles a tener en cuenta." contenedor="sm:col-span-2" />
-        <div className="sm:col-span-2"><SelectorFotos maximo={3} etiqueta="Fotos del vehículo (opcional)" /></div>
+        <div className="relative sm:col-span-2"><FotosTasacion /></div>
       </fieldset>
       <fieldset className="grid gap-3 sm:grid-cols-2"><legend className="titulo mb-2 text-lg">Tus datos</legend>
         <Entrada etiqueta="Nombre y apellido" name="nombre" required autoComplete="name" />

@@ -156,7 +156,9 @@ export async function solicitarTasacion(_: Estado, fd: FormData): Promise<Estado
     estado_general: z.enum(["excelente", "muy_bueno", "bueno", "regular"]), comentarios: zOpcional(600),
   }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
-  const fotos = fd.getAll("foto").map(String).filter((f) => f.startsWith("data:image/jpeg;base64,") && f.length < 450000).slice(0, 3);
+  // Fotos obligatorias, en orden: frente, costado izquierdo, costado derecho, atrás e interior
+  const fotos = fd.getAll("foto").map(String).filter((f) => f.startsWith("data:image/jpeg;base64,") && f.length < 600000).slice(0, 5);
+  if (fotos.length < 5) return { error: `Faltan fotos del vehículo: subí las 5 (frente, ambos costados, atrás e interior). Cargaste ${fotos.length}.` };
   const d = p.data, cliente = await obtenerCliente(d.nombre, d.telefono, d.email);
   const { error } = await db().from("tasaciones").insert({ cliente_id: cliente, sucursal_id: d.sucursal, unidad_interes_id: d.unidad_interes ?? null, marca: d.marca, modelo: d.modelo, anio: d.anio, km: d.km, estado_general: d.estado_general, comentarios: d.comentarios ?? null, fotos });
   if (error) return { error: mensajeError(error) };

@@ -41,10 +41,11 @@ export const MENU: Record<Rol, { href: string; texto: string }[]> = {
   ],
   jefe_taller: [
     { href: "/taller", texto: "Órdenes de trabajo" },
+    { href: "/taller/en-proceso", texto: "Órdenes en proceso" },
+    { href: "/taller/agenda", texto: "Agenda" },
     { href: "/taller/demorados", texto: "Demorados" },
     { href: "/taller/repuestos", texto: "Repuestos" },
     { href: "/taller/mecanicos", texto: "Mecánicos" },
-    { href: "/taller/ocupacion", texto: "Ocupación" },
     { href: "/taller/historial", texto: "Historial" },
   ],
   gerencia: [

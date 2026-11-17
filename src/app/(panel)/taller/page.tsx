@@ -1,7 +1,7 @@
 import { db, leer } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
 import { asignarMecanico, moverOrden } from "@/lib/acciones/taller";
-import { etiqueta, fecha, hora, hoyAR, sumarDias } from "@/lib/formato";
+import { etiqueta, fecha, fechaLarga, hora, hoyAR } from "@/lib/formato";
 import { BotonLink, Encabezado, Entrada, Insignia, Selector, Vacio } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
 import { TiempoReal } from "@/components/panel-cliente";
@@ -13,21 +13,21 @@ const COLUMNAS = [
   { id: "en_proceso", titulo: "En proceso", estados: ["asignada", "en_reparacion", "espera_repuestos"] },
   { id: "finalizada", titulo: "Finalizada", estados: ["terminada", "cerrada"] },
 ] as const;
-const DIAS_FINALIZADAS = 14;
 const tiempo = (m: number | null) => (m == null ? "—" : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 
 export default async function Kanban() {
   const s = await exigirSucursal("jefe_taller");
+  const hoy = hoyAR(), inicioHoy = new Date(`${hoy}T00:00:00-03:00`).toISOString();
   const [ordenes, mecanicos] = await Promise.all([
-    // Abiertas + las cerradas (entregadas) de las últimas 2 semanas, para consultar su planilla
-    leer<any[]>(db().from("v_ordenes").select("*").eq("sucursal_taller_id", s.sucursalId).or(`estado.neq.cerrada,cerrada_en.gte.${sumarDias(hoyAR(), -DIAS_FINALIZADAS)}`).order("abierta_en")),
+    // Solo las órdenes del día: turno de hoy o abiertas hoy (las de otros días están en «Órdenes en proceso»)
+    leer<any[]>(db().from("v_ordenes").select("*").eq("sucursal_taller_id", s.sucursalId).or(`fecha.eq.${hoy},abierta_en.gte.${inicioHoy}`).order("abierta_en")),
     leer<any[]>(db().from("mecanicos").select("*").eq("sucursal_id", s.sucursalId).eq("activo", true).order("nombre")),
   ]);
   const carga = (id: number) => ordenes.filter((o) => o.mecanico_id === id && ["asignada", "en_reparacion", "espera_repuestos"].includes(o.estado));
   const opciones = mecanicos.map((m) => { const c = carga(m.id); return [m.id, `${m.nombre} · ${c.length} en curso (${tiempo(c.reduce((a, o) => a + (o.minutos_estimados ?? 0), 0))})`] as const; });
   return (
     <>
-      <Encabezado titulo="Órdenes de trabajo" texto={`Asigná cada trabajo y seguí su avance. Los que superan el tiempo estimado se marcan en rojo. En «Finalizada» se ven también las entregadas de los últimos ${DIAS_FINALIZADAS} días.`}><TiempoReal /></Encabezado>
+      <Encabezado titulo="Órdenes de trabajo" texto={`Órdenes del día (${fechaLarga(hoy)}). Asigná cada trabajo y seguí su avance; los que superan el tiempo estimado se marcan en rojo. Las de días anteriores que siguen abiertas están en «Órdenes en proceso».`}><TiempoReal /></Encabezado>
       <section aria-label="Carga de trabajo por mecánico" className="mb-5 grid gap-3 sm:grid-cols-3">
         {mecanicos.map((m) => { const c = carga(m.id); return (
           <div key={m.id} className="rounded-lg border border-borde/80 bg-white p-3 shadow-suave">
@@ -35,7 +35,7 @@ export default async function Kanban() {
             <p className="cifras mt-1 text-sm">{c.length === 0 ? "Sin trabajos en curso" : `${c.length} ${c.length === 1 ? "trabajo" : "trabajos"} · ${tiempo(c.reduce((a, o) => a + (o.minutos_estimados ?? 0), 0))} estimados`}</p>
           </div>); })}
       </section>
-      {ordenes.length === 0 ? <Vacio titulo="No hay órdenes de trabajo abiertas" texto="Las órdenes se generan cuando el asesor recibe un vehículo en el taller." /> : (
+      {ordenes.length === 0 ? <Vacio titulo="No hay órdenes de trabajo para hoy" texto="Las órdenes se generan cuando el asesor recibe un vehículo. Las de días anteriores que siguen abiertas están en «Órdenes en proceso»."><BotonLink href="/taller/en-proceso">Ver órdenes en proceso</BotonLink></Vacio> : (
         <div className="flex gap-3 overflow-x-auto pb-3">
           {COLUMNAS.map((col) => { const { titulo } = col, lista = ordenes.filter((o) => (col.estados as readonly string[]).includes(o.estado)).sort((a, b) => col.id === "finalizada" ? (b.fin_en ?? b.cerrada_en ?? "").localeCompare(a.fin_en ?? a.cerrada_en ?? "") : 0); return (
             <section key={col.id} aria-label={titulo} className="w-80 shrink-0 rounded-lg bg-borde/30 p-2 lg:w-auto lg:min-w-72 lg:flex-1">
