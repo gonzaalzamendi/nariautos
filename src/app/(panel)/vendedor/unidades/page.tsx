@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db, leer } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
-import { cambiarEstadoUnidad, cancelarReserva, reservarUnidad } from "@/lib/acciones/ventas";
+import { cancelarReserva, reservarUnidad } from "@/lib/acciones/ventas";
 import { etiqueta, fechaHora, moneda, numero } from "@/lib/formato";
 import { BotonLink, Encabezado, Entrada, Insignia, Tabla, Vacio } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
@@ -10,11 +10,11 @@ export const metadata = { title: "Mis unidades" };
 export default async function Unidades() {
   const s = await exigirSucursal("vendedor");
   await db().rpc("mantenimiento"); // vence reservas de más de 72 h
-  const us = await leer<any[]>(db().from("unidades").select("*, reservas_unidad(id, cliente_nombre, vence_en, estado)").eq("sucursal_id", s.sucursalId).order("estado").order("marca").order("modelo"));
+  const us = await leer<any[]>(db().from("unidades").select("*, reservas_unidad(id, cliente_nombre, vence_en, estado)").eq("sucursal_id", s.sucursalId).neq("estado", "vendida").order("estado").order("marca").order("modelo"));
   return (
     <>
-      <Encabezado titulo="Unidades de mi sucursal" texto="Alta, edición, fotos, reservas y cambios de estado."><BotonLink href="/vendedor/unidades/nueva" variante="primario">Dar de alta una unidad</BotonLink></Encabezado>
-      {us.length === 0 ? <Vacio titulo="Tu sucursal no tiene unidades cargadas" texto="Dá de alta la primera para que aparezca en el catálogo de la web."><BotonLink href="/vendedor/unidades/nueva">Dar de alta una unidad</BotonLink></Vacio> : (
+      <Encabezado titulo="Unidades de mi sucursal" texto="Unidades en venta de tu sucursal. Podés verlas y reservarlas por 72 h; el alta y la edición las hace Gerencia." />
+      {us.length === 0 ? <Vacio titulo="Tu sucursal no tiene unidades en venta" texto="Cuando Gerencia cargue unidades en tu sucursal, las vas a ver acá. También podés pedir unidades de otras sucursales desde «Stock de la red»."><BotonLink href="/vendedor/stock">Ver stock de la red</BotonLink></Vacio> : (
         <Tabla cabeceras={["Unidad", "Año · km", "Precio", "Estado", "Acciones"]}>
           {us.map((u) => {
             const r = u.reservas_unidad.find((x: any) => x.estado === "activa");
@@ -28,10 +28,8 @@ export default async function Unidades() {
                   {r && <p className={`cifras mt-1 text-xs ${porVencer ? "font-medium text-error" : "text-medio"}`}>{r.cliente_nombre}<br />Vence el {fechaHora(r.vence_en)}{porVencer && " · por vencer"}</p>}</td>
                 <td>
                   <div className="flex flex-wrap gap-1.5">
-                    <BotonLink href={`/vendedor/unidades/${u.id}`} variante="contorno" chico>Editar unidad</BotonLink>
+                    <BotonLink href={`/vendedor/unidades/${u.id}`} variante="contorno" chico>Ver unidad</BotonLink>
                     {r && <BotonAccion accion={cancelarReserva} campos={{ reserva: r.id }} confirmar={`¿Cancelar la reserva de ${r.cliente_nombre}?`}>Cancelar reserva</BotonAccion>}
-                    {u.estado !== "vendida" && <BotonAccion accion={cambiarEstadoUnidad} campos={{ unidad: u.id, estado: "vendida" }} confirmar={`¿Marcar ${u.marca} ${u.modelo} como vendida? Deja de mostrarse en la web.`}>Marcar como vendida</BotonAccion>}
-                    {u.estado === "vendida" && <BotonAccion accion={cambiarEstadoUnidad} campos={{ unidad: u.id, estado: "disponible" }}>Volver a disponible</BotonAccion>}
                   </div>
                   {u.estado === "disponible" && (
                     <details className="mt-2"><summary className="inline-flex min-h-9 cursor-pointer items-center text-sm font-medium text-acero">Reservar por 72 h</summary>

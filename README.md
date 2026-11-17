@@ -52,7 +52,8 @@ Datos de cliente para probar:
 | Ver historial de un vehículo | ✓ (patente + código del vehículo) | | ✓ (por patente o cliente) | ✓ (por patente o cliente) | |
 | Recibir y seguir consultas y cotizaciones | | ✓ (su sucursal) | | | solo lectura |
 | Cargar consultas de otros canales | | ✓ | | | |
-| Alta / edición de unidades | | ✓ (su sucursal) | | | ✓ (toda la red) |
+| Ver unidades de su sucursal y reservarlas 72 h | | ✓ (solo lectura) | | | |
+| Alta / edición de unidades y fotos | | | | | ✓ (toda la red) |
 | Alta / edición de promociones | | solo ve las vigentes | | | ✓ |
 | Agendar y gestionar test drives | pide | ✓ (su sucursal) | | | |
 | Cargar turnos de clientes (con sucursal de origen) | | | ✓ | | |

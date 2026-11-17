@@ -110,11 +110,11 @@ export async function gestionarTestDrive(_: Estado, fd: FormData): Promise<Estad
 
 // ---------- Unidades ----------
 export async function guardarUnidad(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigir("vendedor", "gerencia");
+  const s = await exigir("gerencia"); // el vendedor solo ve las unidades
   const p = zUnidad.extend({ id: idOpcional, sucursal: idOpcional }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const { id, sucursal, ...campos } = p.data;
-  const base = s.rol === "gerencia" ? "/gerencia/unidades" : "/vendedor/unidades";
+  const base = "/gerencia/unidades";
   const fila = { ...campos, version: campos.version ?? null, color: campos.color ?? null, descripcion: campos.descripcion ?? null, km: campos.condicion === "0km" ? 0 : campos.km };
   if (id) {
     if (!(await unidadOperable(s, id))) return AJENA;
@@ -134,7 +134,7 @@ export async function guardarUnidad(_: Estado, fd: FormData): Promise<Estado> {
 }
 
 export async function cambiarEstadoUnidad(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigir("vendedor", "gerencia");
+  const s = await exigir("gerencia");
   const p = z.object({ unidad: zId, estado: z.enum(["disponible", "vendida"]) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const u = await unidadOperable(s, p.data.unidad);
@@ -148,7 +148,7 @@ export async function cambiarEstadoUnidad(_: Estado, fd: FormData): Promise<Esta
 }
 
 export async function subirFotos(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigir("vendedor", "gerencia");
+  const s = await exigir("gerencia");
   const p = z.object({ unidad: zId }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const u = await unidadOperable(s, p.data.unidad);
@@ -166,7 +166,7 @@ export async function subirFotos(_: Estado, fd: FormData): Promise<Estado> {
 }
 
 export async function eliminarFoto(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigir("vendedor", "gerencia");
+  const s = await exigir("gerencia");
   const p = z.object({ foto: zId }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const { data: f } = await db().from("fotos_unidad").select("id, unidad_id").eq("id", p.data.foto).maybeSingle();

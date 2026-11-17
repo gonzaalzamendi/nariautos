@@ -1,7 +1,7 @@
 import { db, leer } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
 import { crearTestDrive, gestionarTestDrive } from "@/lib/acciones/ventas";
-import { etiqueta, fecha, fechaLarga, hora, hoyAR, linkWhatsApp } from "@/lib/formato";
+import { etiqueta, fecha, fechaLarga, hora, hoyAR, linkEmail, linkWhatsApp } from "@/lib/formato";
 import { BotonLink, Encabezado, Entrada, Insignia, Selector, Tabla, Tarjeta, Vacio } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
 import { CamposCliente } from "@/components/campos-cliente";
@@ -10,9 +10,10 @@ export const metadata = { title: "Test drives" };
 export default async function TestDrives() {
   const s = await exigirSucursal("vendedor");
   const [tds, us] = await Promise.all([
-    leer<any[]>(db().from("test_drives").select("*, consultas!inner(id, sucursal_id, canal, clientes(nombre, telefono)), unidades(marca, modelo, version)").eq("consultas.sucursal_id", s.sucursalId).order("fecha", { ascending: false }).order("hora")),
+    leer<any[]>(db().from("test_drives").select("*, consultas!inner(id, sucursal_id, canal, clientes(nombre, telefono, email)), unidades(marca, modelo, version)").eq("consultas.sucursal_id", s.sucursalId).order("fecha", { ascending: false }).order("hora")),
     leer<any[]>(db().from("unidades").select("id, marca, modelo, version").eq("sucursal_id", s.sucursalId).neq("estado", "vendida").order("marca").order("modelo")),
   ]);
+  const aviso = (t: any) => `Hola ${t.consultas.clientes.nombre.split(" ")[0]}, te escribe ${s.nombre} de NariAutos. Tu test drive${t.unidades ? ` de ${t.unidades.marca} ${t.unidades.modelo}` : ""} ${t.estado === "confirmado" ? "quedó confirmado" : "está agendado"} para el ${fechaLarga(t.fecha)} a las ${hora(t.hora)} h.`;
   return (
     <>
       <Encabezado titulo="Test drives" texto="Todas las pruebas de manejo de tu sucursal: las que piden los clientes desde la web y las que agendás vos. El día y el horario se pueden ajustar libremente." />
@@ -30,14 +31,15 @@ export default async function TestDrives() {
           {tds.map((t) => { const c = t.consultas.clientes, abierto = ["pendiente", "confirmado"].includes(t.estado); return (
             <tr key={t.id}>
               <td className="cifras whitespace-nowrap font-medium">{fecha(t.fecha)}<br />{hora(t.hora)} h</td>
-              <td>{c.nombre}<br /><span className="cifras text-xs text-medio">{c.telefono} · {etiqueta(t.consultas.canal)}</span></td>
+              <td>{c.nombre}<br /><span className="cifras text-xs text-medio">{c.telefono}{c.email && <><br />{c.email}</>}<br />{etiqueta(t.consultas.canal)}</span></td>
               <td>{t.unidades ? `${t.unidades.marca} ${t.unidades.modelo}` : "—"}<br /><span className="text-xs text-medio">{t.unidades?.version}</span></td>
               <td><Insignia estado={t.estado}>{etiqueta(t.estado)}</Insignia></td>
               <td className="min-w-72">
                 <div className="flex flex-wrap gap-1.5">
                   {t.estado === "pendiente" && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "confirmar" }} variante="primario">Confirmar test drive</BotonAccion>}
                   {t.estado === "confirmado" && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "realizado" }} variante="secundario">Marcar como realizado</BotonAccion>}
-                  {abierto && <BotonLink chico variante="contorno" target="_blank" rel="noreferrer" href={linkWhatsApp(c.telefono, `Hola ${c.nombre.split(" ")[0]}, te escribe ${s.nombre} de NariAutos. Tu test drive${t.unidades ? ` de ${t.unidades.marca} ${t.unidades.modelo}` : ""} ${t.estado === "confirmado" ? "quedó confirmado" : "está agendado"} para el ${fechaLarga(t.fecha)} a las ${hora(t.hora)} h.`)}>Avisar por WhatsApp</BotonLink>}
+                  {abierto && <BotonLink chico variante="contorno" target="_blank" rel="noreferrer" href={linkWhatsApp(c.telefono, aviso(t))}>Avisar por WhatsApp</BotonLink>}
+                  {abierto && c.email && <BotonLink chico variante="contorno" href={linkEmail(c.email, "Tu test drive en NariAutos", aviso(t))}>Avisar por email</BotonLink>}
                   {abierto && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "cancelar" }} variante="peligro" confirmar={`¿Cancelar el test drive de ${c.nombre}?`}>Cancelar test drive</BotonAccion>}
                 </div>
                 {abierto && (

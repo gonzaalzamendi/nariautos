@@ -8,6 +8,7 @@ import { Barras } from "@/components/graficos";
 export const metadata = { title: "Tablero de gerencia" };
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const suma = (f: any[], k: string) => f.reduce((a, x) => a + Number(x[k] ?? 0), 0);
+const horasMin = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min` : `${m} min`);
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
 
 function Indicador({ nombre, valor, detalle }: { nombre: string; valor: string; detalle?: string }) {
@@ -74,13 +75,13 @@ export default async function Tablero({ searchParams }: { searchParams: Promise<
       <h2 className="mb-3 mt-8 text-xl">Post-venta</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Indicador nombre="Ocupación del taller" valor={s1(ocupacion)} detalle="Horas de box reservadas, días con turnos" />
-        <Indicador nombre="Demora promedio" valor={demorados ? `${Math.round(suma(dem, "minutos_demora") / demorados)} min` : "0 min"} detalle="Sobre los trabajos demorados" />
+        <Indicador nombre="Demora promedio" valor={horasMin(demorados ? Math.round(suma(dem, "minutos_demora") / demorados) : 0)} detalle="Sobre los trabajos demorados" />
         <Indicador nombre="Trabajos demorados" valor={`${demorados} de ${trabajos}`} detalle={s1(pct(demorados, trabajos))} />
         <Indicador nombre="Ausentismo" valor={s1(ausent)} detalle={`${porEstado("ausente")} turnos no presentados`} />
         <Indicador nombre="Satisfacción" valor={cantSat ? `${numero(suma(sat, "suma") / cantSat, 1)} / 5` : "—"} detalle={`${cantSat} encuestas`} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Tarjeta titulo="Turnos por estado"><Barras horizontal resaltar="No se presentó" datos={["solicitado", "confirmado", "recibido", "en_reparacion", "listo", "entregado", "ausente", "cancelado", "rechazado"].map((e) => ({ nombre: etiqueta(e), valor: porEstado(e) })).filter((d) => d.valor > 0)} sufijo=" turnos" /></Tarjeta>
+        <Tarjeta titulo="Turnos por estado"><Barras horizontal resaltar="No se presentó" datos={["solicitado", "confirmado", "recibido", "en_reparacion", "listo", "entregado", "ausente", "cancelado"].map((e) => ({ nombre: etiqueta(e), valor: porEstado(e) })).filter((d) => d.valor > 0)} sufijo=" turnos" /></Tarjeta>
         <Tarjeta titulo="Turnos derivados por sucursal de origen"><Barras horizontal alto={160} datos={sucs.filter((s) => !s.tiene_taller && (!suc || s.id === suc)).map((s) => ({ nombre: s.nombre, valor: suma(deriv.filter((x) => x.sucursal_origen_id === s.id), "total") }))} sufijo=" turnos" />
           <p className="mt-2 text-xs text-medio">Turnos originados en sucursales sin taller y realizados en el taller de referencia u otro de la red.</p></Tarjeta>
       </div>
