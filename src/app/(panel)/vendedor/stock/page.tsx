@@ -25,7 +25,7 @@ export default async function Stock({ searchParams }: { searchParams: Promise<{ 
           <ul className="divide-y divide-borde/60">
             {trs.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
-                <span><strong>{t.unidades.marca} {t.unidades.modelo}</strong> · {t.origen.nombre} → {t.destino.nombre}<br /><span className="cifras text-xs text-medio">Pedida por {t.solicitante.nombre} el {fechaHora(t.creado_en)}{t.motivo && ` · ${t.motivo}`}</span></span>
+                <span><strong>{t.unidades.marca} {t.unidades.modelo}</strong> · {t.origen.nombre} → {t.destino.nombre}<br /><span className="cifras text-xs text-medio">Pedida por {t.solicitante?.nombre ?? "un empleado dado de baja"} el {fechaHora(t.creado_en)}{t.motivo && ` · ${t.motivo}`}</span></span>
                 <span className="flex items-center gap-1.5"><Insignia estado={t.estado}>{etiqueta(t.estado)}</Insignia>
                   {t.estado === "solicitada" && t.origen_id === s.sucursalId && <>
                     <BotonAccion accion={resolverTransferencia} campos={{ transferencia: t.id, decision: "aprobada" }} variante="primario" confirmar={`¿Aprobar el envío de ${t.unidades.marca} ${t.unidades.modelo} a ${t.destino.nombre}?`}>Aprobar transferencia</BotonAccion>

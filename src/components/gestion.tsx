@@ -15,7 +15,7 @@ export function FormUnidad({ u, sucursales }: { u?: any; sucursales?: (readonly 
       <Entrada etiqueta="Año" name="anio" type="number" inputMode="numeric" min={1960} max={2030} required defaultValue={u?.anio ?? new Date().getFullYear()} />
       <Selector etiqueta="Condición" name="condicion" required defaultValue={u?.condicion ?? "0km"} opciones={[["0km", "0 km"], ["usado", "Usado"]]} />
       <Entrada etiqueta="Kilómetros" name="km" type="number" inputMode="numeric" min={0} required defaultValue={u?.km ?? 0} ayuda="En unidades 0 km se guarda 0." />
-      <Entrada etiqueta="Precio (pesos)" name="precio" type="number" inputMode="numeric" min={1} step={1000} required defaultValue={u ? Number(u.precio) : ""} />
+      <Entrada etiqueta="Precio (pesos)" name="precio" type="number" inputMode="decimal" min={0.01} step="any" required defaultValue={u ? Number(u.precio) : ""} />
       <Selector etiqueta="Combustible" name="combustible" required defaultValue={u?.combustible ?? "nafta"} opciones={[["nafta", "Nafta"], ["diesel", "Diésel"], ["hibrido", "Híbrido"], ["electrico", "Eléctrico"], ["gnc", "GNC"]]} />
       <Selector etiqueta="Transmisión" name="transmision" required defaultValue={u?.transmision ?? "manual"} opciones={[["manual", "Manual"], ["automatica", "Automática"]]} />
       <Entrada etiqueta="Color" name="color" defaultValue={u?.color ?? ""} />

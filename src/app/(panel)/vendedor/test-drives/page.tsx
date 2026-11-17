@@ -1,7 +1,8 @@
 import { db, leer } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
 import { crearTestDrive, gestionarTestDrive } from "@/lib/acciones/ventas";
-import { etiqueta, fecha, fechaLarga, hora, hoyAR, linkEmail, linkWhatsApp } from "@/lib/formato";
+import { etiqueta, fecha, fechaLarga, hora, hoyAR, linkWhatsApp } from "@/lib/formato";
+import { BotonEmail } from "@/components/email";
 import { BotonLink, Encabezado, Entrada, Insignia, Selector, Tabla, Tarjeta, Vacio } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
 import { CamposCliente } from "@/components/campos-cliente";
@@ -39,7 +40,7 @@ export default async function TestDrives() {
                   {t.estado === "pendiente" && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "confirmar" }} variante="primario">Confirmar test drive</BotonAccion>}
                   {t.estado === "confirmado" && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "realizado" }} variante="secundario">Marcar como realizado</BotonAccion>}
                   {abierto && <BotonLink chico variante="contorno" target="_blank" rel="noreferrer" href={linkWhatsApp(c.telefono, aviso(t))}>Avisar por WhatsApp</BotonLink>}
-                  {abierto && c.email && <BotonLink chico variante="contorno" href={linkEmail(c.email, "Tu test drive en NariAutos", aviso(t))}>Avisar por email</BotonLink>}
+                  {abierto && c.email && <BotonEmail email={c.email} asunto="Tu test drive en NariAutos" mensaje={aviso(t)} />}
                   {abierto && <BotonAccion accion={gestionarTestDrive} campos={{ test: t.id, accion: "cancelar" }} variante="peligro" confirmar={`¿Cancelar el test drive de ${c.nombre}?`}>Cancelar test drive</BotonAccion>}
                 </div>
                 {abierto && (

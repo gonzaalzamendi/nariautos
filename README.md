@@ -65,7 +65,7 @@ Datos de cliente para probar:
 | Asignar trabajos a mecánicos, controlar demoras | | | | ✓ (su taller) | |
 | Repuestos del taller y alta de mecánicos | | | | ✓ (su taller) | |
 | Tablero de indicadores de toda la red | | | | | ✓ |
-| Gestión de empleados, sucursales y servicios | | | | | ✓ |
+| Gestión de empleados (alta, PIN, desactivar y eliminar), sucursales y servicios | | | | | ✓ |
 
 El control se aplica en tres capas, las tres leyendo `src/lib/permisos.ts`:
 
@@ -330,7 +330,7 @@ Recordatorios automáticos de turno y de próximo service · estado del auto vis
 
 ## Limitaciones conocidas del prototipo
 
-- Los avisos por WhatsApp y email abren la aplicación del asesor con el mensaje prearmado; no hay envío automático.
+- Los avisos no se envían solos: WhatsApp abre wa.me con el mensaje armado, y el email ofrece redactarlo en Gmail u Outlook web, abrir el programa de correo de la computadora o copiar destinatario y mensaje.
 - El tiempo real de un trabajo se mide en horas corridas desde que se inicia, sin descontar noches ni fines de semana.
 - El taller atiende de lunes a viernes; no hay feriados cargados.
 - Los teléfonos de los clientes precargados son cuatro números genéricos que se repiten; por eso un cliente se identifica por teléfono y nombre.

@@ -1,7 +1,8 @@
 "use client";
 import { startTransition, useActionState } from "react";
 import { registrarAviso } from "@/lib/acciones/taller";
-import { linkEmail, linkWhatsApp } from "@/lib/formato";
+import { linkWhatsApp } from "@/lib/formato";
+import { BotonEmail } from "./email";
 import { claseBoton } from "./ui";
 import { Mensajes } from "./formularios";
 
@@ -9,8 +10,7 @@ import { Mensajes } from "./formularios";
 export function BotonesAviso({ telefono, email, mensaje, turno, notificacion }: { telefono: string; email?: string | null; mensaje: string; turno?: number; notificacion?: number }) {
   const [estado, enviar, pendiente] = useActionState(registrarAviso, {});
   const texto = mensaje.replace("{SITIO}", typeof window === "undefined" ? "" : window.location.origin);
-  const avisar = (canal: "whatsapp" | "email") => {
-    window.open(canal === "whatsapp" ? linkWhatsApp(telefono, texto) : linkEmail(email!, "Tu vehículo en NariAutos", texto), "_blank", "noopener");
+  const registrar = (canal: "whatsapp" | "email") => {
     const fd = new FormData(); fd.set("canal", canal); fd.set("mensaje", texto);
     if (turno) fd.set("turno", String(turno)); if (notificacion) fd.set("notificacion", String(notificacion));
     startTransition(() => enviar(fd));
@@ -18,8 +18,8 @@ export function BotonesAviso({ telefono, email, mensaje, turno, notificacion }: 
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={pendiente} onClick={() => avisar("whatsapp")} className={claseBoton("secundario", true)}>Avisar por WhatsApp</button>
-        {email && <button type="button" disabled={pendiente} onClick={() => avisar("email")} className={claseBoton("contorno", true)}>Avisar por email</button>}
+        <button type="button" disabled={pendiente} onClick={() => { window.open(linkWhatsApp(telefono, texto), "_blank", "noopener"); registrar("whatsapp"); }} className={claseBoton("secundario", true)}>Avisar por WhatsApp</button>
+        {email && <BotonEmail email={email} asunto="Tu vehículo en NariAutos" mensaje={texto} deshabilitado={pendiente} alUsar={() => registrar("email")} />}
       </div>
       {(estado.error || estado.mensaje) && <div className="mt-2"><Mensajes estado={estado} /></div>}
     </div>

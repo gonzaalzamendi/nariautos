@@ -107,3 +107,22 @@ export async function alternarServicio(_: Estado, fd: FormData): Promise<Estado>
   await auditar(s, v.activo ? "Servicio desactivado" : "Servicio reactivado", "servicios", v.id);
   return listo(v.activo ? "Servicio desactivado: ya no se ofrece en la web." : "Servicio disponible nuevamente.");
 }
+
+export async function eliminarEmpleado(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigir("gerencia");
+  const p = z.object({ empleado: zId }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  if (p.data.empleado === s.id) return { error: "No podés eliminar tu propio usuario." };
+  const { data: e } = await db().from("empleados").select("id, nombre, usuario, rol").eq("id", p.data.empleado).maybeSingle();
+  if (!e) return { error: "Ese empleado ya no existe." };
+  if (e.rol === "gerencia") {
+    const { count } = await db().from("empleados").select("id", { count: "exact", head: true }).eq("rol", "gerencia").eq("activo", true).neq("id", e.id);
+    if (!count) return { error: "No se puede eliminar al único usuario de Gerencia." };
+  }
+  // El historial (consultas, turnos, auditoría) se conserva: la referencia al empleado queda vacía.
+  const { error } = await db().from("empleados").delete().eq("id", e.id);
+  if (error) return { error: mensajeError(error, "No pudimos eliminar al empleado. Probá desactivarlo." ) };
+  await auditar(s, "Eliminación de empleado", "empleados", e.id, { nombre: e.nombre, usuario: e.usuario, rol: e.rol });
+  revalidatePath("/", "layout");
+  return { ok: true, datos: { nombre: e.nombre } };
+}

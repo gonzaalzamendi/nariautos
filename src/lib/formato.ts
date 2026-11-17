@@ -74,3 +74,6 @@ export function hace(ts: string): string {
   const d = Math.round(min / 1440);
   return d === 1 ? "hace 1 día" : `hace ${d} días`;
 }
+/** Redacción de correo en el navegador (no depende de tener un programa de correo instalado). */
+export const linkGmail = (email: string, asunto: string, mensaje: string) => `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}`;
+export const linkOutlook = (email: string, asunto: string, mensaje: string) => `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email)}&subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}`;

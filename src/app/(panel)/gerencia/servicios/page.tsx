@@ -14,7 +14,7 @@ export default async function Servicios() {
       <Entrada etiqueta="Nombre" name="nombre" id={`sn-${k}`} required defaultValue={v?.nombre} />
       <Entrada etiqueta="Descripción" name="descripcion" id={`sd-${k}`} defaultValue={v?.descripcion ?? ""} contenedor="lg:col-span-2" />
       <Entrada etiqueta="Duración (min)" name="duracion_min" id={`sm-${k}`} type="number" min={30} step={30} required defaultValue={v?.duracion_min ?? 60} ayuda="Múltiplos de 30" />
-      <Entrada etiqueta="Precio orientativo ($)" name="precio_orientativo" id={`sp-${k}`} type="number" min={0} step={1000} required defaultValue={v ? Number(v.precio_orientativo) : ""} />
+      <Entrada etiqueta="Precio orientativo ($)" name="precio_orientativo" id={`sp-${k}`} type="number" inputMode="decimal" min={0} step="any" required defaultValue={v ? Number(v.precio_orientativo) : ""} />
       <div className="lg:col-span-5"><BotonEnviar variante={v ? "secundario" : "primario"}>{v ? "Guardar cambios" : "Agregar servicio"}</BotonEnviar></div>
     </FormAccion>); };
   return (

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_SESION, leerToken } from "./token";
@@ -6,11 +7,14 @@ import { INICIO } from "./permisos";
 import type { Rol, Sesion } from "./tipos";
 import { db } from "./db";
 
+/** Verifica (una vez por pedido) que el empleado siga existiendo y activo: si Gerencia lo eliminó o desactivó, pierde el acceso. */
+const sigueActivo = cache(async (id: number) => !!(await db().from("empleados").select("id").eq("id", id).eq("activo", true).maybeSingle()).data);
+
 export async function sesionActual(): Promise<Sesion | null> {
-  return leerToken((await cookies()).get(COOKIE_SESION)?.value);
+  const s = await leerToken((await cookies()).get(COOKIE_SESION)?.value);
+  return s && (await sigueActivo(s.id)) ? s : null;
 }
 
-/** Capa 3 de permisos: cada página y acción del servidor vuelve a verificar el rol. */
 export async function sesionObligatoria(): Promise<Sesion> {
   const s = await sesionActual();
   if (!s) redirect("/acceso");

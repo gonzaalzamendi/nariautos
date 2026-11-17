@@ -20,7 +20,7 @@ export default async function Repuestos() {
       <Entrada etiqueta="Repuesto" name="nombre" id={`rn-${k}`} required defaultValue={r?.nombre} contenedor="lg:col-span-2" />
       <Entrada etiqueta="Stock" name="stock" id={`rs-${k}`} type="number" inputMode="numeric" min={0} required defaultValue={r?.stock ?? 0} />
       <Entrada etiqueta="Stock mínimo" name="stock_minimo" id={`rm-${k}`} type="number" inputMode="numeric" min={0} required defaultValue={r?.stock_minimo ?? 0} />
-      <Entrada etiqueta="Precio ($)" name="precio" id={`rp-${k}`} type="number" inputMode="numeric" min={0} step={100} required defaultValue={r ? Number(r.precio) : ""} />
+      <Entrada etiqueta="Precio ($)" name="precio" id={`rp-${k}`} type="number" inputMode="decimal" min={0} step="any" required defaultValue={r ? Number(r.precio) : ""} />
       <div className="lg:col-span-6"><BotonEnviar variante={r ? "secundario" : "primario"}>{r ? "Guardar cambios" : "Agregar repuesto"}</BotonEnviar></div>
     </FormAccion>); };
   return (

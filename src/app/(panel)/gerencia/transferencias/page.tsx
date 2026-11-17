@@ -17,7 +17,7 @@ export default async function Transferencias() {
           {ts.map((t) => (
             <tr key={t.id}>
               <td className="cifras whitespace-nowrap">{fechaHora(t.creado_en)}</td><td className="font-medium">{t.unidades.marca} {t.unidades.modelo}<br /><span className="text-xs font-normal text-medio">{t.unidades.version}</span></td>
-              <td>{t.origen.nombre} → {t.destino.nombre}</td><td>{t.solicitante.nombre}{t.motivo && <><br /><span className="text-xs text-medio">{t.motivo}</span></>}</td>
+              <td>{t.origen.nombre} → {t.destino.nombre}</td><td>{t.solicitante?.nombre ?? <span className="text-medio">Empleado dado de baja</span>}{t.motivo && <><br /><span className="text-xs text-medio">{t.motivo}</span></>}</td>
               <td><Insignia estado={t.estado}>{etiqueta(t.estado)}</Insignia></td>
               <td>{t.estado === "solicitada" ? <div className="flex flex-wrap gap-1.5">
                 <BotonAccion accion={resolverTransferencia} campos={{ transferencia: t.id, decision: "aprobada" }} variante="primario" confirmar={`¿Aprobar el envío de ${t.unidades.marca} ${t.unidades.modelo} a ${t.destino.nombre}?`}>Aprobar transferencia</BotonAccion>

@@ -1,6 +1,7 @@
 import { db, leer } from "@/lib/db";
 import { exigir } from "@/lib/sesion";
 import { alternarEmpleado, cambiarPinEmpleado, guardarEmpleado } from "@/lib/acciones/gerencia";
+import { BotonEliminarEmpleado } from "@/components/eliminar-empleado";
 import { etiqueta, fechaHora } from "@/lib/formato";
 import { BotonLink, Encabezado, Entrada, Insignia, Selector, Tabla, Tarjeta } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
@@ -9,7 +10,8 @@ export const metadata = { title: "Empleados" };
 const ROLES = [["vendedor", "Vendedor"], ["asesor", "Asesor de servicio"], ["jefe_taller", "Jefe de taller"], ["gerencia", "Gerencia"]] as const;
 const PIN = { type: "password", inputMode: "numeric" as const, pattern: "\\d{4}", maxLength: 4, autoComplete: "new-password", className: "cifras" };
 
-export default async function Empleados() {
+export default async function Empleados({ searchParams }: { searchParams: Promise<{ eliminado?: string }> }) {
+  const { eliminado } = await searchParams;
   const s = await exigir("gerencia");
   const [es, sucs, mecs] = await Promise.all([
     leer<any[]>(db().from("empleados").select("id, nombre, usuario, rol, sucursal_id, activo, bloqueado_hasta, pin_cambiado_en, sucursales(nombre)").order("activo", { ascending: false }).order("nombre")),
@@ -30,6 +32,7 @@ export default async function Empleados() {
   return (
     <>
       <Encabezado titulo="Empleados" texto="Alta, usuario, rol, sucursal y PIN. El PIN se guarda cifrado y vence cada 3 meses (salvo Gerencia)."><BotonLink href="/api/csv/empleados" variante="contorno" download>Exportar a CSV</BotonLink></Encabezado>
+      {eliminado && <p role="status" className="mb-4 rounded-md border border-exito/30 bg-exito/5 px-3 py-2 text-sm text-exito">{eliminado} fue eliminado. Su historial de consultas, turnos y auditoría se conserva.</p>}
       <Tarjeta titulo="Nuevo empleado" className="mb-5"><Form /></Tarjeta>
       <Tabla cabeceras={["Empleado", "Rol", "Sucursal", "Estado", "Acciones"]}>
         {es.map((e) => { const bloq = e.bloqueado_hasta && new Date(e.bloqueado_hasta) > new Date(); return (
@@ -37,13 +40,16 @@ export default async function Empleados() {
             <td className="font-medium">{e.nombre}<br /><span className="cifras text-xs font-normal text-medio">{e.usuario}</span></td><td>{etiqueta(e.rol)}</td><td>{e.sucursales?.nombre ?? "Toda la red"}</td>
             <td><Insignia tono={e.activo ? "exito" : "neutro"}>{e.activo ? "Activo" : "Inactivo"}</Insignia>{bloq && <><br /><span className="cifras text-xs text-error">Bloqueado hasta {fechaHora(e.bloqueado_hasta).slice(-5)} h</span></>}{e.rol !== "gerencia" && Date.now() - new Date(e.pin_cambiado_en).getTime() > 91 * 864e5 && <><br /><span className="text-xs text-alerta-texto">PIN vencido: debe cambiarlo al ingresar</span></>}</td>
             <td className="min-w-72">
-              <details><summary className="inline-flex min-h-9 cursor-pointer items-center text-sm font-medium text-acero">Editar datos y PIN</summary>
+              <details><summary className="inline-flex min-h-9 cursor-pointer items-center text-sm font-medium text-acero">Editar, cambiar PIN o eliminar</summary>
                 <div className="mt-2 space-y-4 rounded-md border border-borde p-3">
                   <Form e={e} />
                   <FormAccion accion={cambiarPinEmpleado} ocultos={{ empleado: e.id }} limpiar className="flex items-end gap-2 border-t border-borde/70 pt-3">
                     <Entrada etiqueta="PIN nuevo" name="pin" id={`p-${e.id}`} required {...PIN} contenedor="w-32" /><BotonEnviar variante="contorno">Cambiar PIN</BotonEnviar>
                   </FormAccion>
-                  {e.id !== s.id && <BotonAccion accion={alternarEmpleado} campos={{ empleado: e.id }} variante={e.activo ? "peligro" : "contorno"} confirmar={e.activo ? `¿Desactivar a ${e.nombre}? No va a poder ingresar al sistema.` : undefined}>{e.activo ? "Desactivar empleado" : "Reactivar empleado"}</BotonAccion>}
+                  {e.id !== s.id && <div className="flex flex-wrap gap-2 border-t border-borde/70 pt-3">
+                    <BotonAccion accion={alternarEmpleado} campos={{ empleado: e.id }} variante="contorno" confirmar={e.activo ? `¿Desactivar a ${e.nombre}? No va a poder ingresar al sistema.` : undefined}>{e.activo ? "Desactivar empleado" : "Reactivar empleado"}</BotonAccion>
+                    <BotonEliminarEmpleado id={e.id} nombre={e.nombre} usuario={e.usuario} />
+                  </div>}
                 </div></details>
             </td>
           </tr>); })}

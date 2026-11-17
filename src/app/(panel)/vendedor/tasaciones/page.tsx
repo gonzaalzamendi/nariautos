@@ -25,7 +25,7 @@ export default async function Tasaciones() {
                   <div className="mt-2"><BotonLink chico target="_blank" rel="noreferrer" href={linkWhatsApp(t.clientes.telefono, `Hola ${t.clientes.nombre.split(" ")[0]}, te escribe ${s.nombre} de NariAutos. Estimamos tu ${t.marca} ${t.modelo} ${t.anio} en ${moneda(t.valor_estimado)}, sujeto a revisión presencial. ${t.respuesta ?? ""}`)}>Avisar por WhatsApp</BotonLink></div></div>
               ) : (
                 <FormAccion accion={responderTasacion} ocultos={{ tasacion: t.id }} className="mt-3 space-y-3 border-t border-borde/70 pt-3">
-                  <Entrada etiqueta="Valor estimado (pesos)" name="valor" type="number" inputMode="numeric" min={1} step={1000} required />
+                  <Entrada etiqueta="Valor estimado (pesos)" name="valor" type="number" inputMode="decimal" min={0.01} step="any" required />
                   <AreaTexto etiqueta="Comentario para el cliente (opcional)" name="respuesta" maxLength={500} />
                   <BotonEnviar variante="primario">Responder tasación</BotonEnviar>
                 </FormAccion>

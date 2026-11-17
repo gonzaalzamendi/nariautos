@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
 import { agregarSeguimiento, cerrarConsulta, responderCotizacion } from "@/lib/acciones/ventas";
-import { etiqueta, fechaHora, linkEmail, linkWhatsApp, moneda } from "@/lib/formato";
+import { etiqueta, fechaHora, linkWhatsApp, moneda } from "@/lib/formato";
+import { BotonEmail } from "@/components/email";
 import { AreaTexto, BotonLink, Dato, Encabezado, Entrada, Insignia, Tarjeta } from "@/components/ui";
 import { BotonAccion, BotonEnviar, FormAccion } from "@/components/formularios";
 
@@ -38,15 +39,15 @@ export default async function Consulta({ params }: { params: Promise<{ id: strin
             {c.estado === "perdida" && <p className="mt-3 text-sm text-error">Motivo de pérdida: {c.motivo_perdida}</p>}
             <div className="mt-4 flex flex-wrap gap-2">
               <BotonLink href={linkWhatsApp(c.clientes.telefono, msj)} target="_blank" rel="noreferrer" chico>Escribir por WhatsApp</BotonLink>
-              {c.clientes.email && <BotonLink href={linkEmail(c.clientes.email, "Tu consulta en NariAutos", msj)} variante="contorno" chico>Enviar email</BotonLink>}
+              {c.clientes.email && <BotonEmail email={c.clientes.email} asunto="Tu consulta en NariAutos" mensaje={msj} texto="Enviar email" />}
             </div>
           </Tarjeta>
           <Tarjeta titulo="Cotización" accion={c.precio_cotizado ? <BotonLink href={`/api/cotizacion/${c.id}`} variante="contorno" chico target="_blank">Descargar PDF</BotonLink> : undefined}>
             {c.precio_cotizado && <p className="cifras mb-4 rounded-md bg-fondo px-3 py-2 text-sm">Cotizado el {fechaHora(c.cotizada_en)}: {moneda(c.precio_cotizado)} − bonificación {moneda(c.bonificacion)} = <strong>{moneda(final)}</strong>{c.financiacion_ofrecida && <><br />Financiación: {c.financiacion_ofrecida}</>}</p>}
             {abierta ? (
               <FormAccion accion={responderCotizacion} ocultos={{ consulta: c.id }} className="grid gap-3 sm:grid-cols-2">
-                <Entrada etiqueta="Precio cotizado (pesos)" name="precio" type="number" inputMode="numeric" min={1} required defaultValue={c.precio_cotizado ? Number(c.precio_cotizado) : u ? Number(u.precio) : ""} />
-                <Entrada etiqueta="Bonificación (pesos)" name="bonificacion" type="number" inputMode="numeric" min={0} defaultValue={c.bonificacion ? Number(c.bonificacion) : 0} />
+                <Entrada etiqueta="Precio cotizado (pesos)" name="precio" type="number" inputMode="decimal" min={0.01} step="any" required defaultValue={c.precio_cotizado ? Number(c.precio_cotizado) : u ? Number(u.precio) : ""} />
+                <Entrada etiqueta="Bonificación (pesos)" name="bonificacion" type="number" inputMode="decimal" min={0} step="any" defaultValue={c.bonificacion ? Number(c.bonificacion) : 0} />
                 <AreaTexto etiqueta="Opción de financiación" name="financiacion" maxLength={400} defaultValue={c.financiacion_ofrecida ?? (c.simulacion ? `Anticipo del ${c.simulacion.anticipo_pct}% y ${c.simulacion.cuotas} cuotas de ${moneda(c.simulacion.cuota)} (TNA ${c.simulacion.tna}%).` : "")} contenedor="sm:col-span-2" />
                 <div className="sm:col-span-2"><BotonEnviar variante="primario">{c.precio_cotizado ? "Actualizar cotización" : "Responder cotización"}</BotonEnviar></div>
               </FormAccion>
