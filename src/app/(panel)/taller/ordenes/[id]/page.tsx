@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { db, leer } from "@/lib/db";
 import { exigirSucursal } from "@/lib/sesion";
 import { etiqueta, fecha, fechaHora, hora, moneda, numero } from "@/lib/formato";
-import { BotonLink, Encabezado, Insignia } from "@/components/ui";
+import { BotonLink, Encabezado, Insignia, Logo } from "@/components/ui";
 import { BotonImprimir } from "@/components/panel-cliente";
 
 export const metadata = { title: "Orden de trabajo" };
@@ -57,7 +57,7 @@ export default async function OrdenTrabajo({ params }: { params: Promise<{ id: s
       <article className="mx-auto max-w-4xl rounded-lg border border-borde/80 bg-white p-5 shadow-suave sm:p-8 print:max-w-none print:border-0 print:p-0 print:shadow-none" aria-label={`Planilla de la orden de trabajo ${o.id}`}>
         <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-dorado pb-4">
           <div>
-            <p className="font-serif text-[26px] font-semibold leading-none text-marino">Nari<span className="text-dorado">Autos</span></p>
+            <Logo eslogan alto={56} />
             <p className="mt-1 text-xs text-medio">Taller {t.taller.nombre} · {t.taller.direccion}, {t.taller.localidad} · Tel. {t.taller.telefono}</p>
           </div>
           <div className="text-right">

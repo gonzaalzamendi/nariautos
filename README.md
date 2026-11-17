@@ -10,6 +10,10 @@ Resuelve tres problemas del negocio:
 - **Post-venta:** agenda compartida de turnos, derivación ordenada desde las sucursales sin taller e historial de services por patente.
 - **Gestión:** una sola web para toda la red, carga de unidades y promociones sin depender de sistemas, y un tablero de indicadores.
 
+## Identidad visual
+
+Logo con la silueta dorada del auto y el eslogan **«Conducí tus sueños»** (`public/marca/`): versiones para fondo azul marino y para fondo claro, con y sin eslogan, más el ícono de la pestaña (`src/app/icon.png`). Colores: azul marino `#0B1F3A`, dorado `#A8874E`, azul acero `#2C4A6E`.
+
 ## Stack
 
 | Capa | Tecnología |

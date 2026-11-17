@@ -15,7 +15,7 @@ export default async function Acceso({ searchParams }: { searchParams: Promise<{
   const { motivo } = await searchParams;
   return (
     <main id="contenido" className="flex min-h-dvh flex-col items-center bg-marino px-4 py-10">
-      <Link href="/" aria-label="NariAutos, volver a la web"><Logo claro /></Link>
+      <Link href="/" title="Volver a la web"><Logo claro eslogan alto={80} /></Link>
       <p className="mt-1 text-sm text-white/70">Acceso de empleados</p>
       {motivo === "inactividad" && <p role="status" className="mt-4 max-w-sm rounded-md bg-white/10 px-3 py-2 text-sm text-white">La sesión se cerró por 15 minutos de inactividad. Ingresá de nuevo para continuar.</p>}
       <div className="mt-6 w-full max-w-sm rounded-lg bg-white p-6 shadow-suave">

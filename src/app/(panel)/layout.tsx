@@ -22,7 +22,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <div className="min-h-dvh">
       <header className="no-imprimir bg-marino text-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5">
-          <Link href={INICIO[s.rol]} aria-label="NariAutos, inicio del panel"><Logo claro /></Link>
+          <Link href={INICIO[s.rol]} title="Inicio del panel"><Logo claro alto={38} /></Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden text-right leading-tight sm:block">
               <p className="text-sm font-medium">{s.nombre}</p>

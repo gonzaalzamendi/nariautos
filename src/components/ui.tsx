@@ -120,8 +120,14 @@ export function Dato({ nombre, children }: { nombre: string; children: ReactNode
   return <div><dt className="text-xs uppercase tracking-wide text-medio">{nombre}</dt><dd className="mt-0.5 text-[15px]">{children}</dd></div>;
 }
 
-export function Logo({ claro }: { claro?: boolean }) {
-  return <span className={clsx("font-serif text-[22px] font-semibold tracking-tight", claro ? "text-white" : "text-marino")}>Nari<span className="text-dorado">Autos</span></span>;
+/**
+ * Logo de NariAutos (imagen). `claro`: para fondos azul marino. `eslogan`: agrega «Conducí tus sueños».
+ * Proporciones: 900×231 sin eslogan y 900×273 con eslogan.
+ */
+export function Logo({ claro, eslogan, alto = 40, className }: { claro?: boolean; eslogan?: boolean; alto?: number; className?: string }) {
+  const archivo = `/marca/logo${eslogan ? "-eslogan" : ""}${claro ? "" : "-oscuro"}.png`;
+  const ancho = Math.round(alto * (eslogan ? 900 / 273 : 900 / 231));
+  return <img src={archivo} alt={eslogan ? "NariAutos · Conducí tus sueños" : "NariAutos"} width={ancho} height={alto} className={clsx("block h-auto max-w-full", className)} style={{ height: alto, width: "auto" }} />;
 }
 
 export function Esqueleto({ filas = 4 }: { filas?: number }) {
