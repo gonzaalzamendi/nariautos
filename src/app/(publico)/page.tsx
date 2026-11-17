@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgePercent, Car, Handshake, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowRight, Car, Handshake, ShieldCheck, Wrench } from "lucide-react";
 import { db, leer } from "@/lib/db";
 import { SEL_UNIDAD, fotosDe, promocionesVigentes, sucursales } from "@/lib/datos";
 import { fecha, moneda, numero } from "@/lib/formato";
@@ -103,34 +103,6 @@ export default async function Inicio() {
         </Banner>
       </section>
 
-      {promos.length > 0 && (
-        <section aria-labelledby="t-promos" className="mx-auto mt-14 max-w-6xl px-4">
-          <Titulo id="t-promos" href="/promociones" accion="Ver todas">Promociones vigentes</Titulo>
-          <div className="grid gap-5 md:grid-cols-3">
-            {promos.slice(0, 3).map((p) => (
-              <article key={p.id} className="rounded-xl border border-borde/60 border-t-2 border-t-dorado bg-white p-5 shadow-suave">
-                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-dorado-texto"><BadgePercent size={15} aria-hidden="true" />{p.sucursales?.nombre ?? "Toda la red"}</p>
-                <h3 className="mt-2 text-lg leading-snug">{p.titulo}</h3>
-                <p className="mt-1 text-sm text-medio">{p.descripcion}</p>
-                <p className="cifras mt-3 text-xs text-medio">Vigente hasta el {fecha(p.vigente_hasta)}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section aria-labelledby="t-suc" className="mx-auto mt-14 max-w-6xl px-4">
-        <Titulo id="t-suc" href="/sucursales" accion="Ver horarios">Nuestras sucursales</Titulo>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {sucs.map((s) => (
-            <li key={s.id} className="rounded-lg border border-borde/80 bg-white p-4 shadow-suave">
-              <h3 className="text-lg">{s.nombre}</h3>
-              <p className="text-sm text-medio">{s.direccion}, {s.localidad}</p>
-              <div className="mt-2 flex flex-wrap gap-1.5"><Insignia tono="info">Ventas</Insignia>{s.tiene_taller ? <Insignia tono="exito">Con taller</Insignia> : <Insignia>Sin taller · deriva a {s.referencia?.nombre}</Insignia>}</div>
-            </li>
-          ))}
-        </ul>
-      </section>
       <BarraComparar />
     </div>
   );
