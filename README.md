@@ -306,7 +306,8 @@ Recordatorios automáticos de turno y de próximo service · estado del auto vis
 - «Historial»: buscar por patente o por apellido del cliente.
 
 **4. Jefe de taller · `carlos.duarte` · 3333 (2 min)**
-- Kanban: asignar la orden nueva a un mecánico viendo la carga de cada uno. Los demorados están en rojo y exigen motivo.
+- Órdenes de trabajo en tres columnas (Sin asignar, En proceso, Finalizada): asignar la orden nueva a un mecánico viendo la carga de cada uno. Los demorados están en rojo y exigen motivo.
+- «Ver orden de trabajo» en una orden en proceso y en una finalizada: planilla imprimible con los datos que va cargando el mecánico.
 - «Repuestos»: cargar un repuesto a una orden (descuenta stock) y ver los que hay que reponer.
 - «Mecánicos»: agregar uno nuevo; aparece de inmediato para asignarle trabajos.
 - Ingresar como `hugo.benitez` / 9999 para mostrar el cambio obligatorio de PIN vencido.
