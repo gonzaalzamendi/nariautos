@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { exigirSucursal } from "@/lib/sesion";
+import { exigirAsesor } from "@/lib/sesion";
 import { entregarVehiculo, gestionarTurno, recibirVehiculo } from "@/lib/acciones/taller";
 import { etiqueta, fecha, fechaHora, fechaLarga, hora, numero } from "@/lib/formato";
 import { AreaTexto, BotonLink, Dato, Encabezado, Entrada, Insignia, Selector, Tarjeta } from "@/components/ui";
@@ -11,7 +11,7 @@ import { TiempoReal } from "@/components/panel-cliente";
 export const metadata = { title: "Turno" };
 
 export default async function Turno({ params }: { params: Promise<{ id: string }> }) {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
   const t = (await db().from("turnos").select("*, vehiculos(*), clientes(*), servicios(nombre, duracion_min), origen:sucursales!turnos_sucursal_origen_id_fkey(nombre), taller:sucursales!turnos_sucursal_taller_id_fkey(nombre, direccion), eventos_turno(id, estado, detalle, creado_en, empleados(nombre)), notificaciones(id, tipo, canal, mensaje, estado, enviada_en), ordenes_trabajo(*)")

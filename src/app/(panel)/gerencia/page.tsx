@@ -23,17 +23,17 @@ export default async function Tablero({ searchParams }: { searchParams: Promise<
   const lista = Array.from({ length: meses }, (_, i) => new Date(Date.UTC(a, m - meses + i, 1)).toISOString().slice(0, 10));
   const desde = lista[0], hasta = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
   const v = (vista: string, col = "sucursal_id", fechaCol = "mes") => { let q = db().from(vista).select("*").gte(fechaCol, desde).lte(fechaCol, hasta); if (suc) q = q.eq(col, suc); return leer<any[]>(q); };
-  const [sucs, ventas, stockTodo, consultas, turnos, deriv, ocup, dem, sat] = await Promise.all([
+  const [sucs, ventas, stockTodo, consultas, turnos, deriv, ocup, dem] = await Promise.all([
     leer<any[]>(db().from("sucursales").select("id, nombre, tiene_taller").order("id")),
     v("v_kpi_ventas"), leer<any[]>(db().from("v_kpi_stock").select("*")), v("v_kpi_consultas"), v("v_kpi_turnos"),
-    v("v_kpi_derivaciones", "sucursal_origen_id"), v("v_kpi_ocupacion", "sucursal_id", "fecha"), v("v_kpi_demoras"), v("v_kpi_satisfaccion"),
+    v("v_kpi_derivaciones", "sucursal_origen_id"), v("v_kpi_ocupacion", "sucursal_id", "fecha"), v("v_kpi_demoras"),
   ]);
   const nombre = (id: number) => sucs.find((s) => s.id === id)?.nombre ?? "—";
   const stock = suc ? stockTodo.filter((s) => s.sucursal_id === suc) : stockTodo;
   const totConsultas = suma(consultas, "total"), ganadas = suma(consultas, "ganadas"), respondidas = suma(consultas, "respondidas");
   const totTurnos = suma(turnos, "total"), porEstado = (e: string) => suma(turnos.filter((t) => t.estado === e), "total");
   const validos = totTurnos - porEstado("cancelado") - porEstado("rechazado");
-  const trabajos = suma(dem, "trabajos"), demorados = suma(dem, "demorados"), cantSat = suma(sat, "cantidad");
+  const trabajos = suma(dem, "trabajos"), demorados = suma(dem, "demorados");
   const disponibles = suma(stock, "disponibles"), enStock = disponibles + suma(stock, "reservadas");
   const antig = enStock ? Math.round(stock.reduce((x, s) => x + s.antiguedad_prom_dias * (s.disponibles + s.reservadas), 0) / enStock) : 0;
   const ocupacion = pct(suma(ocup, "minutos_ocupados"), suma(ocup, "minutos_capacidad"));
@@ -61,7 +61,7 @@ export default async function Tablero({ searchParams }: { searchParams: Promise<
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Tarjeta titulo="Unidades vendidas por mes"><Barras datos={lista.map((mes) => ({ nombre: `${MESES[Number(mes.slice(5, 7)) - 1]} ${mes.slice(2, 4)}`, valor: suma(ventas.filter((x) => x.mes === mes), "unidades") }))} sufijo=" unidades" /></Tarjeta>
         <Tarjeta titulo="Unidades vendidas por sucursal"><Barras horizontal datos={sucs.filter((s) => !suc || s.id === suc).map((s) => ({ nombre: s.nombre, valor: suma(ventas.filter((x) => x.sucursal_id === s.id), "unidades") }))} sufijo=" unidades" /></Tarjeta>
-        <Tarjeta titulo="Stock disponible por sucursal" className="lg:col-span-2"><Barras horizontal alto={160} datos={sucs.filter((s) => !suc || s.id === suc).map((s) => ({ nombre: s.nombre, valor: stockTodo.find((x) => x.sucursal_id === s.id)?.disponibles ?? 0 }))} sufijo=" unidades" /></Tarjeta>
+        <Tarjeta titulo="Stock disponible por sucursal" className="lg:col-span-2" accion={<div className="flex flex-wrap gap-2"><BotonLink href="/gerencia/unidades" variante="contorno" chico>Ver stock</BotonLink><BotonLink href="/gerencia/unidades/nueva" variante="primario" chico>Cargar vehículo al stock</BotonLink></div>}><Barras horizontal alto={160} datos={sucs.filter((s) => !suc || s.id === suc).map((s) => ({ nombre: s.nombre, valor: stockTodo.find((x) => x.sucursal_id === s.id)?.disponibles ?? 0 }))} sufijo=" unidades" /></Tarjeta>
       </div>
 
       <h2 className="mb-3 mt-8 text-xl">Comercial</h2>
@@ -73,12 +73,11 @@ export default async function Tablero({ searchParams }: { searchParams: Promise<
       <div className="mt-4"><Tarjeta titulo="Consultas por canal"><Barras datos={["web", "whatsapp", "telefono", "presencial"].map((c) => ({ nombre: etiqueta(c), valor: suma(consultas.filter((x) => x.canal === c), "total") }))} sufijo=" consultas" /></Tarjeta></div>
 
       <h2 className="mb-3 mt-8 text-xl">Post-venta</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Indicador nombre="Ocupación del taller" valor={s1(ocupacion)} detalle="Horas de box reservadas, días con turnos" />
         <Indicador nombre="Demora promedio" valor={horasMin(demorados ? Math.round(suma(dem, "minutos_demora") / demorados) : 0)} detalle="Sobre los trabajos demorados" />
         <Indicador nombre="Trabajos demorados" valor={`${demorados} de ${trabajos}`} detalle={s1(pct(demorados, trabajos))} />
         <Indicador nombre="Ausentismo" valor={s1(ausent)} detalle={`${porEstado("ausente")} turnos no presentados`} />
-        <Indicador nombre="Satisfacción" valor={cantSat ? `${numero(suma(sat, "suma") / cantSat, 1)} / 5` : "—"} detalle={`${cantSat} encuestas`} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Tarjeta titulo="Turnos por estado"><Barras horizontal resaltar="No se presentó" datos={["solicitado", "confirmado", "recibido", "en_reparacion", "listo", "entregado", "ausente", "cancelado"].map((e) => ({ nombre: etiqueta(e), valor: porEstado(e) })).filter((d) => d.valor > 0)} sufijo=" turnos" /></Tarjeta>

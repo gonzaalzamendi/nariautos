@@ -14,7 +14,7 @@ export default async function Unidad({ params }: { params: Promise<{ id: string 
   const sucs = await leer<any[]>(db().from("sucursales").select("id, nombre").order("id"));
   return (
     <>
-      <Encabezado titulo={u ? `${u.marca} ${u.modelo}` : "Dar de alta una unidad"}><BotonLink href="/gerencia/unidades" variante="contorno" chico>Volver a unidades</BotonLink></Encabezado>
+      <Encabezado titulo={u ? `${u.marca} ${u.modelo}` : "Cargar vehículo al stock"}><BotonLink href="/gerencia/unidades" variante="contorno" chico>Volver al stock</BotonLink></Encabezado>
       <div className="space-y-5"><Tarjeta titulo="Datos de la unidad"><FormUnidad u={u ?? undefined} sucursales={sucs.map((s) => [s.id, s.nombre] as const)} /></Tarjeta>{u && <GestorFotos u={u} />}</div>
     </>
   );

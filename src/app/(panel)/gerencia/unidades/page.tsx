@@ -6,7 +6,7 @@ import { etiqueta, fecha, moneda, numero } from "@/lib/formato";
 import { BotonLink, Encabezado, Insignia, Selector, Tabla, claseBoton } from "@/components/ui";
 import { BotonAccion } from "@/components/formularios";
 
-export const metadata = { title: "Unidades de la red" };
+export const metadata = { title: "Stock de unidades" };
 export default async function Unidades({ searchParams }: { searchParams: Promise<{ sucursal?: string; estado?: string }> }) {
   await exigir("gerencia");
   const sp = await searchParams;
@@ -16,8 +16,8 @@ export default async function Unidades({ searchParams }: { searchParams: Promise
   const [us, sucs] = await Promise.all([leer<any[]>(q.order("sucursal_id").order("marca").order("modelo")), leer<any[]>(db().from("sucursales").select("id, nombre").order("id"))]);
   return (
     <>
-      <Encabezado titulo="Unidades de toda la red" texto="Alta y edición sin depender de sistemas.">
-        <BotonLink href="/api/csv/unidades" variante="contorno" download>Exportar a CSV</BotonLink><BotonLink href="/gerencia/unidades/nueva" variante="primario">Dar de alta una unidad</BotonLink>
+      <Encabezado titulo="Stock de toda la red" texto="Cargá vehículos nuevos al stock y editá los existentes.">
+        <BotonLink href="/api/csv/unidades" variante="contorno" download>Exportar a CSV</BotonLink><BotonLink href="/gerencia/unidades/nueva" variante="primario">Cargar vehículo al stock</BotonLink>
       </Encabezado>
       <form className="mb-4 flex flex-wrap items-end gap-3" aria-label="Filtros">
         <Selector etiqueta="Sucursal" name="sucursal" defaultValue={sp.sucursal ?? ""} vacio="Todas" opciones={sucs.map((s) => [s.id, s.nombre] as const)} contenedor="w-44" />

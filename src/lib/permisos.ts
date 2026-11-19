@@ -51,7 +51,7 @@ export const MENU: Record<Rol, { href: string; texto: string }[]> = {
   gerencia: [
     { href: "/gerencia", texto: "Tablero" },
     { href: "/gerencia/consultas", texto: "Consultas" },
-    { href: "/gerencia/unidades", texto: "Unidades" },
+    { href: "/gerencia/unidades", texto: "Stock" },
     { href: "/gerencia/promociones", texto: "Promociones" },
     { href: "/gerencia/transferencias", texto: "Transferencias" },
     { href: "/gerencia/empleados", texto: "Empleados" },

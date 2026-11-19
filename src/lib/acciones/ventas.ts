@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, mensajeError } from "@/lib/db";
-import { auditar, exigir, exigirSucursal } from "@/lib/sesion";
+import { auditar, exigir, exigirSucursal, exigirAsesor } from "@/lib/sesion";
 import { obtenerCliente } from "@/lib/datos";
 import { hoyAR } from "@/lib/formato";
 import { normalizarPatente, objeto, primerError, zContacto, zFecha, zHora, zId, zOpcional, zTurno, zUnidad } from "@/lib/validaciones";
@@ -322,18 +322,18 @@ export async function buscarRegistrados(q: { patente?: string; texto?: string })
 
 // ---------- Turnos cargados por el asesor (con sucursal de origen) ----------
 export async function derivarTurno(datos: Record<string, unknown>): Promise<Estado> {
-  const s = await exigirSucursal("asesor");
-  const p = zTurno.extend({ canal: z.enum(["presencial", "telefono", "whatsapp"]) }).safeParse({ ...datos, taller: s.sucursalId });
+  const s = await exigirAsesor();
+  const p = zTurno.extend({ canal: z.enum(["presencial", "telefono", "whatsapp"]) }).safeParse({ ...datos, taller: s.sucursalId, origen: s.origenId });
   if (!p.success) return { error: primerError(p.error) };
   const t = p.data;
   const { data, error } = await db().rpc("reservar_turno", {
-    p_servicio: t.servicio, p_taller: s.sucursalId, p_origen: t.origen, p_canal: t.canal, p_fecha: t.fecha, p_hora: t.hora,
+    p_servicio: t.servicio, p_taller: s.sucursalId, p_origen: s.origenId, p_canal: t.canal, p_fecha: t.fecha, p_hora: t.hora,
     p_patente: t.patente, p_marca: t.marca, p_modelo: t.modelo, p_anio: t.anio, p_km: t.km,
     p_nombre: t.nombre, p_telefono: t.telefono, p_email: t.email ?? null, p_observaciones: t.observaciones ?? null, p_empleado: s.id,
   });
   if (error) return { error: mensajeError(error) };
   const { data: veh } = await db().from("vehiculos").select("codigo_auto").eq("id", data.vehiculo_id).single();
-  await auditar(s, data.derivado ? "Turno derivado cargado" : "Turno cargado", "turnos", data.id, { codigo: data.codigo, origen: t.origen });
+  await auditar(s, data.derivado ? "Turno derivado cargado" : "Turno cargado", "turnos", data.id, { codigo: data.codigo, origen: s.origenId });
   revalidatePath("/", "layout");
   return { ok: true, datos: { id: data.id, codigo: data.codigo, fecha: data.fecha, hora: data.hora, derivado: data.derivado, patente: t.patente, codigoAuto: veh?.codigo_auto, nombre: t.nombre, telefono: t.telefono, email: t.email ?? null } };
 }

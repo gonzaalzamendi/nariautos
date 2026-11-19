@@ -39,7 +39,7 @@ Los empleados ingresan por `/acceso` (enlace «Acceso empleados» al pie de la w
 | `sofia.herrera` | Sofía Herrera | Gerencia | Toda la red | 4444 |
 | — | (Cliente) | Cliente | — | sin contraseña |
 
-Usuarios adicionales: `diego.paz` (vendedor, Casa Central, 5555), `valeria.sosa` (vendedora, Sucursal 2, 6666), `nicolas.ferreyra` (vendedor, Sucursal 4, 7777), `paula.gimenez` (asesora, Sucursal 2, 8888) y `hugo.benitez` (jefe de taller, Sucursal 2, 9999). **Hugo tiene el PIN vencido a propósito:** al ingresar, el sistema lo obliga a cambiarlo.
+Usuarios adicionales: `diego.paz` (vendedor, Casa Central, 5555), `valeria.sosa` (vendedora, Sucursal 2, 6666), `nicolas.ferreyra` (vendedor, Sucursal 4, 7777), `paula.gimenez` (asesora, Sucursal 2, 8888) `hugo.benitez` (jefe de taller, Sucursal 2, 9999) y `lucas.acosta` (asesor, Sucursal 4, 1212: como la Sucursal 4 no tiene taller, sus turnos se cargan directo en el taller de Sucursal 2). **Hugo tiene el PIN vencido a propósito:** al ingresar, el sistema lo obliga a cambiarlo.
 
 Datos de cliente para probar:
 

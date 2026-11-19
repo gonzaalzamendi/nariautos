@@ -34,7 +34,8 @@ insert into empleados (nombre, usuario, rol, sucursal_id, pin_hash) values
  ('Valeria Sosa', 'valeria.sosa', 'vendedor', 2, hash_pin('6666')),
  ('Nicolás Ferreyra', 'nicolas.ferreyra', 'vendedor', 4, hash_pin('7777')),
  ('Paula Giménez', 'paula.gimenez', 'asesor', 2, hash_pin('8888')),
- ('Hugo Benítez', 'hugo.benitez', 'jefe_taller', 2, hash_pin('9999'));
+ ('Hugo Benítez', 'hugo.benitez', 'jefe_taller', 2, hash_pin('9999')),
+ ('Lucas Acosta', 'lucas.acosta', 'asesor', 4, hash_pin('1212'));
 -- Hugo tiene el PIN vencido (más de 3 meses): sirve para mostrar el cambio obligatorio
 update empleados set pin_cambiado_en = now() - interval '100 days' where usuario = 'hugo.benitez';
 

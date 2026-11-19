@@ -1,12 +1,12 @@
 import { db, leer } from "@/lib/db";
-import { exigirSucursal } from "@/lib/sesion";
+import { exigirAsesor } from "@/lib/sesion";
 import { etiqueta, fecha, fechaHora } from "@/lib/formato";
 import { Encabezado, Insignia, Tarjeta, Vacio } from "@/components/ui";
 import { BotonesAviso } from "@/components/taller-cliente";
 
 export const metadata = { title: "Recordatorios" };
 export default async function Recordatorios() {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   await db().rpc("mantenimiento"); // genera la cola: turnos de las próximas 24 h y próximos services
   const sel = "*, clientes(nombre, telefono, email), vehiculos(patente)";
   const [pend, env] = await Promise.all([

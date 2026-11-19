@@ -41,3 +41,18 @@ export async function auditar(s: Pick<Sesion, "id" | "nombre"> | null, accion: s
   });
   if (error) console.error("[auditoria]", error.message);
 }
+
+/** Taller que atiende a cada sucursal: la propia si tiene taller, si no la de referencia (ej.: Sucursal 4 → Sucursal 2). */
+export const tallerDeSucursal = cache(async (sucursalId: number): Promise<number> => {
+  const { data } = await db().from("sucursales").select("tiene_taller, taller_referencia_id").eq("id", sucursalId).single();
+  return data?.tiene_taller ? sucursalId : (data?.taller_referencia_id ?? sucursalId);
+});
+
+/**
+ * Sesión del asesor de servicio. `sucursalId` pasa a ser el taller con el que trabaja
+ * (su sucursal o, si no tiene taller, la de referencia); `origenId` es la sucursal donde atiende.
+ */
+export async function exigirAsesor(): Promise<Sesion & { sucursalId: number; origenId: number }> {
+  const s = await exigirSucursal("asesor");
+  return { ...s, origenId: s.sucursalId, sucursalId: await tallerDeSucursal(s.sucursalId) };
+}

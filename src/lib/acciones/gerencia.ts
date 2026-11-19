@@ -16,9 +16,9 @@ export async function guardarEmpleado(_: Estado, fd: FormData): Promise<Estado> 
   if (!p.success) return { error: primerError(p.error) };
   const { id, nombre, usuario, rol, sucursal, pin } = p.data;
   if (rol !== "gerencia" && !sucursal) return { error: "Elegí la sucursal del empleado." };
-  if (sucursal && ["asesor", "jefe_taller"].includes(rol)) {
+  if (sucursal && rol === "jefe_taller") {
     const { data: suc } = await db().from("sucursales").select("tiene_taller").eq("id", sucursal).single();
-    if (!suc?.tiene_taller) return { error: "Los asesores y jefes de taller trabajan en una sucursal con taller. Elegí Casa Central o Sucursal 2." };
+    if (!suc?.tiene_taller) return { error: "El jefe de taller trabaja en una sucursal con taller. Elegí Casa Central o Sucursal 2. (Un asesor sí puede estar en una sucursal sin taller: sus turnos van al taller de referencia.)" };
   }
   const fila = { nombre, usuario, rol, sucursal_id: rol === "gerencia" ? null : sucursal };
   const repetido = (e: any) => (e.code === "23505" ? "Ese nombre de usuario ya está en uso. Elegí otro." : mensajeError(e));

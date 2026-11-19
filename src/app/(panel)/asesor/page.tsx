@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db, leer } from "@/lib/db";
-import { exigirSucursal } from "@/lib/sesion";
+import { exigirAsesor } from "@/lib/sesion";
 import { diaSemana, etiqueta, fecha, fechaLarga, hora, hoyAR, sumarDias } from "@/lib/formato";
 import { BotonLink, Encabezado, Insignia, Vacio } from "@/components/ui";
 import { TiempoReal } from "@/components/panel-cliente";
@@ -28,7 +28,7 @@ function Turno({ t, conFecha }: { t: any; conFecha?: boolean }) {
 }
 
 export default async function Agenda({ searchParams }: { searchParams: Promise<{ vista?: string; fecha?: string }> }) {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const sp = await searchParams, vista = ["semana", "pendientes"].includes(sp.vista ?? "") ? sp.vista! : "dia";
   let dia = /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha ?? "") ? sp.fecha! : hoyAR();
   if (!sp.fecha) while (diaSemana(dia) === 0 || diaSemana(dia) === 6) dia = sumarDias(dia, 1);

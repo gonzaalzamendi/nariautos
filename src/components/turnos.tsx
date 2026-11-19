@@ -56,19 +56,20 @@ export function SelectorHorario({ taller, servicio, valor, onChange }: { taller:
 
 type Props = {
   servicios: any[]; sucursales: any[]; modo: "cliente" | "empleado";
-  /** Taller del asesor: el trabajo siempre se hace ahí y se elige de qué sucursal llega el cliente. */
-  tallerFijo?: number; sucursalInicial?: number;
+  /** Asesor: taller donde se hace el trabajo y sucursal donde atiende. Se asignan solos, sin elegir. */
+  tallerFijo?: number; origenFijo?: number; sucursalInicial?: number;
   reservar: (datos: Record<string, unknown>) => Promise<Estado>;
 };
-const PASOS = ["Servicio", "Taller", "Día y hora", "Tus datos", "Confirmación"];
+const PASOS = ["Servicio", "Sucursal", "Día y hora", "Tus datos", "Confirmación"];
 const radio = (activo: boolean) => clsx("flex cursor-pointer gap-3 rounded-md border p-3", activo ? "border-marino bg-acero/5" : "border-borde hover:border-acero");
 
-export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucursalInicial, reservar }: Props) {
+export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, origenFijo, sucursalInicial, reservar }: Props) {
   const empleado = modo === "empleado";
   const [paso, setPaso] = useState(0);
   const [servicio, setServicio] = useState<number | null>(null);
-  const [cercana, setCercana] = useState<number | null>(tallerFijo ?? sucursalInicial ?? null);
-  const [tallerElegido, setTallerElegido] = useState<number | null>(null);
+  // El cliente elige directamente una sucursal con taller (si llega con una sin taller, se toma su taller de referencia)
+  const inicial = sucursales.find((s) => s.id === sucursalInicial);
+  const [cercana, setCercana] = useState<number | null>(empleado ? (origenFijo ?? tallerFijo ?? null) : inicial ? (inicial.tiene_taller ? inicial.id : inicial.taller_referencia_id) : null);
   const [horario, setHorario] = useState<{ fecha: string; hora: string } | null>(null);
   const [d, setD] = useState<Record<string, string>>({ canal: "presencial" });
   const [estado, setEstado] = useState<Estado>({});
@@ -77,11 +78,10 @@ export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucurs
 
   const suc = sucursales.find((s) => s.id === cercana);
   const talleres = sucursales.filter((s) => s.tiene_taller);
-  const taller = tallerFijo ?? (suc ? (suc.tiene_taller ? suc.id : tallerElegido ?? suc.taller_referencia_id) : null);
+  const taller = tallerFijo ?? (suc?.tiene_taller ? suc.id : null);
   const tallerSuc = sucursales.find((s) => s.id === taller);
   const srv = servicios.find((s) => s.id === servicio);
   const campo = (k: string) => ({ name: k, value: d[k] ?? "", onChange: (e: React.ChangeEvent<any>) => setD((x) => ({ ...x, [k]: e.target.value })) });
-  const km = (id: number) => { const v = suc?.distancias?.[id]; return v != null ? `a ${String(v).replace(".", ",")} km` : ""; };
   const faltaDescripcion = !!srv?.requiere_descripcion && (d.observaciones ?? "").trim().length < 10;
 
   // Autocompletar opcional: si la patente ya está registrada, se ofrecen sus datos
@@ -121,7 +121,7 @@ export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucurs
             <p className="cifras rounded-md border-2 border-dashed border-acero/50 bg-acero/5 px-5 py-2.5 font-mono text-3xl font-semibold tracking-[0.2em] text-marino" data-codigo="auto">{t.codigoAuto}</p></div>}
         </div>
         <p className="mt-4">{srv?.nombre} · {cuando}<br /><strong>{tallerSuc?.nombre}</strong> · {tallerSuc?.direccion}, {tallerSuc?.localidad}</p>
-        {t.derivado && <p className="mx-auto mt-3 max-w-md rounded-md bg-fondo px-3 py-2 text-sm">Turno derivado desde {suc?.nombre}: el trabajo se realiza en {tallerSuc?.nombre}.</p>}
+        {empleado && t.derivado && <p className="mx-auto mt-3 max-w-md rounded-md bg-fondo px-3 py-2 text-sm">Cargado desde {suc?.nombre}: el trabajo se realiza en {tallerSuc?.nombre}.</p>}
         <p className="mx-auto mt-3 max-w-lg text-sm text-medio">Con la patente {t.patente} y el <strong>código de turno</strong> se sigue, reprograma o cancela el turno. Con la patente y el <strong>código del vehículo</strong> se consulta el historial de services.</p>
         {empleado && t.telefono && (
           <div className="mx-auto mt-4 w-fit text-left">
@@ -141,10 +141,10 @@ export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucurs
   return (
     <div className="rounded-lg border border-borde/80 bg-white shadow-suave">
       <ol className="flex gap-1 overflow-x-auto border-b border-borde/70 px-3 py-3 text-sm" aria-label="Pasos">
-        {PASOS.map((p, i) => (
+        {PASOS.map((p, i) => (empleado && i === 1) ? null : (
           <li key={p} aria-current={i === paso ? "step" : undefined} className={clsx("flex shrink-0 items-center gap-1.5 rounded px-2 py-1", i === paso ? "font-semibold text-marino" : i < paso ? "text-exito" : "text-medio")}>
-            <span className={clsx("cifras flex h-6 w-6 items-center justify-center rounded-full border text-xs", i === paso ? "border-marino bg-marino text-white" : i < paso ? "border-exito" : "border-borde")}>{i + 1}</span>
-            {empleado && i === 1 ? "Origen" : empleado && i === 3 ? "Cliente y vehículo" : p}
+            <span className={clsx("cifras flex h-6 w-6 items-center justify-center rounded-full border text-xs", i === paso ? "border-marino bg-marino text-white" : i < paso ? "border-exito" : "border-borde")}>{empleado && i > 1 ? i : i + 1}</span>
+            {empleado && i === 3 ? "Cliente y vehículo" : p}
           </li>
         ))}
       </ol>
@@ -167,49 +167,23 @@ export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucurs
             )}
           </fieldset>
         )}
-        {paso === 1 && (tallerFijo ? (
-          <fieldset><legend className="titulo mb-1 text-xl">¿Desde qué sucursal llega el cliente?</legend>
-            <p className="mb-3 text-sm text-medio">El trabajo se realiza en <strong>{tallerSuc?.nombre}</strong>. Si el cliente viene de otra sucursal, el turno queda marcado como derivado.</p>
+        {paso === 1 && !empleado && (
+          <fieldset><legend className="titulo mb-1 text-xl">¿En qué sucursal querés hacer el service?</legend>
+            <p className="mb-3 text-sm text-medio">El taller funciona en estas dos sucursales. Elegí la que te quede más cómoda.</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {sucursales.map((s) => (
+              {talleres.map((s) => (
                 <label key={s.id} className={radio(cercana === s.id)}>
-                  <input type="radio" name="origen" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={cercana === s.id} onChange={() => setCercana(s.id)} />
-                  <span><span className="block font-medium">{s.nombre}{s.id === tallerFijo && " (este taller)"}</span><span className="block text-sm text-medio">{s.direccion}, {s.localidad}</span></span>
+                  <input type="radio" name="sucursal" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={cercana === s.id} onChange={() => { setCercana(s.id); setHorario(null); }} />
+                  <span><span className="block font-medium">{s.nombre}</span><span className="block text-sm text-medio">{s.direccion}, {s.localidad}</span>
+                    {s.telefono && <span className="cifras mt-1 block text-xs text-medio">Tel. {s.telefono}</span>}</span>
                 </label>
               ))}
             </div>
           </fieldset>
-        ) : (
-          <div>
-            <fieldset><legend className="titulo mb-3 text-xl">¿Cuál es tu sucursal más cercana?</legend>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {sucursales.map((s) => (
-                  <label key={s.id} className={radio(cercana === s.id)}>
-                    <input type="radio" name="cercana" className="mt-1 h-4 w-4 accent-[#0b1f3a]" checked={cercana === s.id} onChange={() => { setCercana(s.id); setTallerElegido(null); setHorario(null); }} />
-                    <span><span className="block font-medium">{s.nombre}</span><span className="block text-sm text-medio">{s.direccion}, {s.localidad}</span>
-                      <span className="mt-1 block text-xs font-medium text-acero">{s.tiene_taller ? "Con taller propio" : "Sin taller"}</span></span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {suc && !suc.tiene_taller && (
-              <div className="mt-4 rounded-md border border-alerta/40 bg-alerta/10 p-4" role="status">
-                <p className="font-medium text-alerta-texto">Esta sucursal no tiene taller.</p>
-                <p className="mt-1 text-sm">Tu turno se realizará en <strong>{suc.referencia?.nombre}</strong> ({suc.referencia?.direccion}, {suc.referencia?.localidad}), {km(suc.taller_referencia_id)}.</p>
-                <fieldset className="mt-3"><legend className="mb-1 text-sm font-medium">Taller donde se hace el trabajo</legend>
-                  {talleres.map((t) => (
-                    <label key={t.id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-                      <input type="radio" name="taller" className="h-4 w-4 accent-[#0b1f3a]" checked={taller === t.id} onChange={() => { setTallerElegido(t.id); setHorario(null); }} />
-                      {t.nombre} · {t.localidad} <span className="text-medio">({km(t.id)}{t.id === suc.taller_referencia_id ? ", taller de referencia" : ""})</span>
-                    </label>
-                  ))}
-                </fieldset>
-              </div>
-            )}
-          </div>
-        ))}
+        )}
         {paso === 2 && taller && servicio && (
           <div><h2 className="mb-1 text-xl">Elegí día y hora</h2>
+            {empleado && <p className="mb-1 text-sm">El turno se carga en <strong>{tallerSuc?.nombre}</strong>{origenFijo && origenFijo !== tallerFijo ? <>, el taller que atiende a {suc?.nombre}</> : ""}.</p>}
             <p className="mb-4 text-sm text-medio">Agenda de {tallerSuc?.nombre} para «{srv?.nombre}» ({srv?.duracion_min} min). Solo se muestran horarios con lugar.</p>
             <SelectorHorario taller={taller} servicio={servicio} valor={horario} onChange={setHorario} />
           </div>
@@ -238,13 +212,13 @@ export function AsistenteTurno({ servicios, sucursales, modo, tallerFijo, sucurs
               <AreaTexto etiqueta={srv?.requiere_descripcion ? "Descripción del problema" : "Observaciones (opcional)"} {...campo("observaciones")} required={!!srv?.requiere_descripcion} maxLength={500} contenedor="sm:col-span-2" />
             </div>
             <input type="text" name="sitio_web" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px]" onChange={(e) => setD((x) => ({ ...x, sitio_web: e.target.value }))} />
-            <p className="mt-4 rounded-md bg-fondo px-3 py-2 text-sm"><strong>{srv?.nombre}</strong> · {horario && fechaLarga(horario.fecha)} a las {horario?.hora} h · {tallerSuc?.nombre}{tallerFijo && cercana !== tallerFijo && <> · derivado desde {suc?.nombre}</>}</p>
+            <p className="mt-4 rounded-md bg-fondo px-3 py-2 text-sm"><strong>{srv?.nombre}</strong> · {horario && fechaLarga(horario.fecha)} a las {horario?.hora} h · {tallerSuc?.nombre}</p>
           </form>
         )}
         {estado.error && <div className="mt-4"><Mensajes estado={estado} /></div>}
         <div className="mt-6 flex justify-between gap-2 border-t border-borde/70 pt-4">
-          <button type="button" className={clsx(claseBoton("contorno"), paso === 0 && "invisible")} onClick={() => { setEstado({}); setPaso((p) => p - 1); }}>Volver</button>
-          {paso < 3 ? <button type="button" disabled={!puedeSeguir} className={claseBoton("secundario")} onClick={() => setPaso((p) => p + 1)}>Continuar</button>
+          <button type="button" className={clsx(claseBoton("contorno"), paso === 0 && "invisible")} onClick={() => { setEstado({}); setPaso((p) => (empleado && p === 2 ? 0 : p - 1)); }}>Volver</button>
+          {paso < 3 ? <button type="button" disabled={!puedeSeguir} className={claseBoton("secundario")} onClick={() => setPaso((p) => (empleado && p === 0 ? 2 : p + 1))}>Continuar</button>
             : <button type="submit" form="form-turno" disabled={enviando} aria-busy={enviando} className={claseBoton("primario")}>{enviando ? "Reservando…" : empleado ? "Reservar turno en el taller" : "Confirmar turno"}</button>}
         </div>
       </div>

@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, mensajeError } from "@/lib/db";
-import { auditar, exigirSucursal } from "@/lib/sesion";
+import { auditar, exigirSucursal, exigirAsesor } from "@/lib/sesion";
 import { hoyAR } from "@/lib/formato";
 import { objeto, primerError, zEntero, zFecha, zHora, zId, zOpcional } from "@/lib/validaciones";
 import type { Estado, Sesion } from "@/lib/tipos";
@@ -19,7 +19,7 @@ const evento = (turno: number, estado: string, detalle: string, s: Sesion) => db
 
 // ---------- Asesor de servicio ----------
 export async function gestionarTurno(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const p = z.object({ turno: zId, accion: z.enum(["confirmar", "rechazar", "ausente"]), motivo: zOpcional(300) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const t = await turnoPropio(s, p.data.turno);
@@ -38,7 +38,7 @@ export async function gestionarTurno(_: Estado, fd: FormData): Promise<Estado> {
 }
 
 export async function reprogramarTurnoAsesor(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const p = z.object({ turno: zId, fecha: zFecha, hora: zHora }).safeParse(objeto(fd));
   if (!p.success) return { error: "Elegí el nuevo día y horario en la agenda." };
   const t = await turnoPropio(s, p.data.turno);
@@ -50,7 +50,7 @@ export async function reprogramarTurnoAsesor(_: Estado, fd: FormData): Promise<E
 }
 
 export async function recibirVehiculo(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const p = z.object({
     turno: zId, km_ingreso: zEntero.min(0, "Revisá los kilómetros de ingreso.").max(2000000), combustible_nivel: z.enum(["reserva", "1/4", "1/2", "3/4", "lleno"]),
     observaciones: zOpcional(600), danos_visibles: zOpcional(600), trabajos_solicitados: z.string().trim().min(3, "Detallá los trabajos solicitados por el cliente.").max(800),
@@ -70,7 +70,7 @@ export async function recibirVehiculo(_: Estado, fd: FormData): Promise<Estado> 
 }
 
 export async function entregarVehiculo(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const p = z.object({ turno: zId, km_egreso: zEntero.min(0, "Revisá los kilómetros de egreso."), trabajos_realizados: z.string().trim().min(3, "Detallá los trabajos realizados: quedan en el historial del vehículo.").max(1000) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const t = await turnoPropio(s, p.data.turno);
@@ -91,7 +91,7 @@ export async function entregarVehiculo(_: Estado, fd: FormData): Promise<Estado>
 }
 
 export async function registrarAviso(_: Estado, fd: FormData): Promise<Estado> {
-  const s = await exigirSucursal("asesor");
+  const s = await exigirAsesor();
   const p = z.object({ turno: z.preprocess((v) => v || undefined, zId.optional()), notificacion: z.preprocess((v) => v || undefined, zId.optional()), canal: z.enum(["whatsapp", "email"]), mensaje: z.string().trim().min(3).max(1000) }).safeParse(objeto(fd));
   if (!p.success) return { error: primerError(p.error) };
   const ahora = new Date().toISOString();
