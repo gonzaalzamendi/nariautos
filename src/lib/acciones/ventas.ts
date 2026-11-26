@@ -147,6 +147,21 @@ export async function cambiarEstadoUnidad(_: Estado, fd: FormData): Promise<Esta
   return listo(p.data.estado === "vendida" ? "Unidad marcada como vendida." : "Unidad disponible nuevamente.");
 }
 
+/** Gerencia elimina una unidad del stock (con sus fotos, reservas y transferencias). Las vendidas no se borran: sostienen los indicadores de ventas. */
+export async function eliminarUnidad(_: Estado, fd: FormData): Promise<Estado> {
+  const s = await exigir("gerencia");
+  const p = z.object({ unidad: zId }).safeParse(objeto(fd));
+  if (!p.success) return { error: primerError(p.error) };
+  const u = await unidadOperable(s, p.data.unidad);
+  if (!u) return { error: "Esa unidad ya no existe." };
+  if (u.estado === "vendida") return { error: "Las unidades vendidas no se eliminan: forman parte del historial de ventas." };
+  const { error } = await db().from("unidades").delete().eq("id", u.id);
+  if (error) return { error: mensajeError(error, "No pudimos eliminar la unidad.") };
+  await auditar(s, "Eliminación de unidad", "unidades", u.id, { marca: u.marca, modelo: u.modelo, anio: u.anio });
+  revalidatePath("/", "layout");
+  return { ok: true, datos: { nombre: `${u.marca} ${u.modelo} ${u.anio}` } };
+}
+
 export async function subirFotos(_: Estado, fd: FormData): Promise<Estado> {
   const s = await exigir("gerencia");
   const p = z.object({ unidad: zId }).safeParse(objeto(fd));
